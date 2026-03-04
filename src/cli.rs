@@ -51,6 +51,14 @@ pub enum Commands {
     #[command(subcommand)]
     Label(LabelCommand),
 
+    /// Manage cycles
+    #[command(subcommand)]
+    Cycle(CycleCommand),
+
+    /// Manage initiatives
+    #[command(subcommand)]
+    Initiative(InitiativeCommand),
+
     /// View changelog
     Changelog,
 }
@@ -67,9 +75,9 @@ pub enum IssueCommand {
         /// Issue title
         title: String,
 
-        /// Team ID (required)
+        /// Team name, key, or UUID
         #[arg(long)]
-        team_id: String,
+        team: String,
 
         /// Issue description
         #[arg(long)]
@@ -79,13 +87,13 @@ pub enum IssueCommand {
         #[arg(long)]
         priority: Option<i32>,
 
-        /// Assignee user ID
+        /// Assignee (name, email, "me", or UUID)
         #[arg(long)]
-        assignee_id: Option<String>,
+        assignee: Option<String>,
 
-        /// Project ID
+        /// Project name or UUID
         #[arg(long)]
-        project_id: Option<String>,
+        project: Option<String>,
 
         /// Label IDs (comma-separated)
         #[arg(long, value_delimiter = ',')]
@@ -97,7 +105,7 @@ pub enum IssueCommand {
 
         /// Parent issue ID or identifier (e.g., APP-123)
         #[arg(long)]
-        parent_id: Option<String>,
+        parent: Option<String>,
 
         /// Attach a file to the created issue
         #[arg(long)]
@@ -120,17 +128,17 @@ pub enum IssueCommand {
         #[arg(long)]
         priority: Option<i32>,
 
-        /// Assignee user ID
+        /// Assignee (name, email, "me", or UUID)
         #[arg(long)]
-        assignee_id: Option<String>,
+        assignee: Option<String>,
 
-        /// Workflow state ID
+        /// Workflow state name
         #[arg(long)]
         state: Option<String>,
 
-        /// Project ID
+        /// Project name or UUID
         #[arg(long)]
-        project_id: Option<String>,
+        project: Option<String>,
 
         /// Label IDs (comma-separated)
         #[arg(long, value_delimiter = ',')]
@@ -146,29 +154,65 @@ pub enum IssueCommand {
 
         /// Parent issue ID or identifier (e.g., APP-123)
         #[arg(long)]
-        parent_id: Option<String>,
+        parent: Option<String>,
 
         /// Attach a file to the issue
         #[arg(long)]
         attachment: Option<String>,
     },
-    /// Search issues
+    /// Search issues (requires a search term)
     Search {
         /// Search query
-        query: Option<String>,
+        query: String,
 
-        /// Filter by project ID
+        /// Filter by project (name or UUID)
         #[arg(long)]
-        project_id: Option<String>,
+        project: Option<String>,
 
-        /// Filter by team ID
+        /// Filter by team (name, key, or UUID)
         #[arg(long)]
-        team_id: Option<String>,
+        team: Option<String>,
 
-        /// Filter by assignee ID
+        /// Filter by assignee (name, email, "me", or UUID)
         #[arg(long)]
-        assignee_id: Option<String>,
+        assignee: Option<String>,
 
+        /// Filter by status name
+        #[arg(long)]
+        status: Option<String>,
+
+        /// Max results
+        #[arg(long, default_value = "20")]
+        limit: i32,
+    },
+    /// List issues with filters (no text search)
+    List {
+        /// Filter by team (name, key, or UUID)
+        #[arg(long)]
+        team: Option<String>,
+
+        /// Filter by assignee (name, email, "me", or UUID)
+        #[arg(long)]
+        assignee: Option<String>,
+
+        /// Filter by status name
+        #[arg(long)]
+        status: Option<String>,
+
+        /// Filter by project (name or UUID)
+        #[arg(long)]
+        project: Option<String>,
+
+        /// Filter by priority (0=None, 1=Urgent, 2=High, 3=Medium, 4=Low)
+        #[arg(long)]
+        priority: Option<i32>,
+
+        /// Max results
+        #[arg(long, default_value = "20")]
+        limit: i32,
+    },
+    /// List issues assigned to you
+    Me {
         /// Filter by status name
         #[arg(long)]
         status: Option<String>,
@@ -262,7 +306,7 @@ pub enum ProjectCommand {
     },
     /// View project details
     View {
-        /// Project ID or slug
+        /// Project name or UUID
         id: String,
     },
     /// Create a new project
@@ -270,9 +314,9 @@ pub enum ProjectCommand {
         /// Project name
         name: String,
 
-        /// Team IDs (comma-separated, at least one required)
+        /// Team names, keys, or UUIDs (comma-separated, at least one required)
         #[arg(long, value_delimiter = ',')]
-        team_ids: Vec<String>,
+        teams: Vec<String>,
 
         /// Project description
         #[arg(long)]
@@ -280,7 +324,7 @@ pub enum ProjectCommand {
     },
     /// Edit a project
     Edit {
-        /// Project ID
+        /// Project name or UUID
         id: String,
 
         /// New name
@@ -304,13 +348,13 @@ pub enum ProjectCommand {
 pub enum ProjectUpdateCommand {
     /// List project updates
     List {
-        /// Project ID
-        project_id: String,
+        /// Project name or UUID
+        project: String,
     },
     /// Add a project update
     Add {
-        /// Project ID
-        project_id: String,
+        /// Project name or UUID
+        project: String,
         /// Update body
         body: String,
 
@@ -353,18 +397,18 @@ pub enum UserCommand {
 pub enum LabelCommand {
     /// List labels
     List {
-        /// Filter by team ID
+        /// Filter by team (name, key, or UUID)
         #[arg(long)]
-        team_id: Option<String>,
+        team: Option<String>,
     },
     /// Create a label
     Create {
         /// Label name
         name: String,
 
-        /// Team ID (required)
+        /// Team name, key, or UUID
         #[arg(long)]
-        team_id: String,
+        team: String,
 
         /// Label color (hex, e.g., #ff0000)
         #[arg(long)]
@@ -377,5 +421,40 @@ pub enum LabelCommand {
         /// Parent label ID
         #[arg(long)]
         parent_id: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum CycleCommand {
+    /// List cycles for a team
+    List {
+        /// Team name, key, or UUID
+        #[arg(long)]
+        team: String,
+
+        /// Max results
+        #[arg(long, default_value = "10")]
+        limit: i32,
+    },
+    /// Show the currently active cycle for a team
+    Active {
+        /// Team name, key, or UUID
+        #[arg(long)]
+        team: String,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum InitiativeCommand {
+    /// List initiatives
+    List {
+        /// Max results
+        #[arg(long, default_value = "50")]
+        limit: i32,
+    },
+    /// View initiative details
+    View {
+        /// Initiative ID
+        id: String,
     },
 }

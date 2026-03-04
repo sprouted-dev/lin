@@ -3,19 +3,24 @@ use serde_json::json;
 
 use crate::api::client::LinearClient;
 use crate::api::queries::*;
+use crate::api::resolve;
 use crate::api::types::*;
 use crate::output;
 
-pub async fn list(client: &LinearClient, team_id: Option<&str>) -> Result<()> {
-    let variables = team_id.map(|tid| {
-        json!({
-            "filter": {
-                "team": {
-                    "id": { "eq": tid }
+pub async fn list(client: &LinearClient, team: Option<&str>) -> Result<()> {
+    let variables = match team {
+        Some(t) => {
+            let tid = resolve::resolve_team_identifier(client, t).await?;
+            Some(json!({
+                "filter": {
+                    "team": {
+                        "id": { "eq": tid }
+                    }
                 }
-            }
-        })
-    });
+            }))
+        }
+        None => None,
+    };
 
     let data: LabelsData = client.execute(LABELS_QUERY, variables).await?;
 
@@ -35,11 +40,12 @@ pub async fn list(client: &LinearClient, team_id: Option<&str>) -> Result<()> {
 pub async fn create(
     client: &LinearClient,
     name: &str,
-    team_id: &str,
+    team: &str,
     color: Option<&str>,
     description: Option<&str>,
     parent_id: Option<&str>,
 ) -> Result<()> {
+    let team_id = resolve::resolve_team_identifier(client, team).await?;
     let mut input = json!({
         "name": name,
         "teamId": team_id,

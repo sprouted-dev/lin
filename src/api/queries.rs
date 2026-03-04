@@ -33,8 +33,25 @@ pub const ISSUE_QUERY: &str = r#"
 "#;
 
 pub const ISSUE_SEARCH_QUERY: &str = r#"
-    query IssueSearch($query: String!, $first: Int, $filter: IssueFilter) {
-        issueSearch(query: $query, first: $first, filter: $filter) {
+    query SearchIssues($term: String!, $first: Int, $filter: IssueFilter, $includeComments: Boolean) {
+        searchIssues(term: $term, first: $first, filter: $filter, includeComments: $includeComments) {
+            nodes {
+                id
+                identifier
+                title
+                priority
+                url
+                state { id name type }
+                assignee { id name displayName }
+                team { id name key }
+            }
+        }
+    }
+"#;
+
+pub const ISSUES_QUERY: &str = r#"
+    query Issues($first: Int, $filter: IssueFilter, $includeArchived: Boolean) {
+        issues(first: $first, filter: $filter, includeArchived: $includeArchived) {
             nodes {
                 id
                 identifier
@@ -336,6 +353,54 @@ pub const ISSUE_ATTACHMENTS_QUERY: &str = r#"
                     title
                     url
                     createdAt
+                }
+            }
+        }
+    }
+"#;
+
+// --- Cycles ---
+
+pub const CYCLES_QUERY: &str = r#"
+    query Cycles($first: Int, $filter: CycleFilter) {
+        cycles(first: $first, filter: $filter) {
+            nodes {
+                id
+                number
+                name
+                startsAt
+                endsAt
+            }
+        }
+    }
+"#;
+
+// --- Initiatives ---
+
+pub const INITIATIVES_QUERY: &str = r#"
+    query Initiatives($first: Int) {
+        initiatives(first: $first) {
+            nodes {
+                id
+                name
+                status
+            }
+        }
+    }
+"#;
+
+pub const INITIATIVE_QUERY: &str = r#"
+    query Initiative($id: String!) {
+        initiative(id: $id) {
+            id
+            name
+            description
+            status
+            projects {
+                nodes {
+                    id
+                    name
+                    state
                 }
             }
         }

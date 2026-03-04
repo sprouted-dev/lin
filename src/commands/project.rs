@@ -3,6 +3,7 @@ use serde_json::json;
 
 use crate::api::client::LinearClient;
 use crate::api::queries::*;
+use crate::api::resolve;
 use crate::api::types::*;
 use crate::output;
 
@@ -36,8 +37,9 @@ pub async fn list(client: &LinearClient, include_archived: bool, limit: i32) -> 
 }
 
 pub async fn view(client: &LinearClient, id: &str) -> Result<()> {
+    let resolved_id = resolve::resolve_project_identifier(client, id).await?;
     let data: ProjectDetailData = client
-        .execute(PROJECT_QUERY, Some(json!({ "id": id })))
+        .execute(PROJECT_QUERY, Some(json!({ "id": resolved_id })))
         .await?;
 
     let p = data.project;
@@ -79,12 +81,17 @@ pub async fn view(client: &LinearClient, id: &str) -> Result<()> {
 pub async fn create(
     client: &LinearClient,
     name: &str,
-    team_ids: &[String],
+    teams: &[String],
     description: Option<&str>,
 ) -> Result<()> {
+    let mut resolved_team_ids = Vec::new();
+    for t in teams {
+        resolved_team_ids.push(resolve::resolve_team_identifier(client, t).await?);
+    }
+
     let mut input = json!({
         "name": name,
-        "teamIds": team_ids,
+        "teamIds": resolved_team_ids,
     });
 
     if let Some(desc) = description {
@@ -113,6 +120,7 @@ pub async fn edit(
     description: Option<&str>,
     state: Option<&str>,
 ) -> Result<()> {
+    let id = resolve::resolve_project_identifier(client, id).await?;
     let mut input = json!({});
     if let Some(n) = name {
         input["name"] = json!(n);
@@ -144,7 +152,8 @@ pub async fn edit(
 
 // --- Project Updates ---
 
-pub async fn update_list(client: &LinearClient, project_id: &str) -> Result<()> {
+pub async fn update_list(client: &LinearClient, project: &str) -> Result<()> {
+    let project_id = resolve::resolve_project_identifier(client, project).await?;
     let data: ProjectUpdatesData = client
         .execute(PROJECT_UPDATES_QUERY, Some(json!({ "id": project_id })))
         .await?;
@@ -184,7 +193,7 @@ fn validate_health(health: &str) -> Result<()> {
 
 pub async fn update_add(
     client: &LinearClient,
-    project_id: &str,
+    project: &str,
     body: &str,
     health: Option<&str>,
 ) -> Result<()> {
@@ -192,6 +201,7 @@ pub async fn update_add(
         validate_health(h)?;
     }
 
+    let project_id = resolve::resolve_project_identifier(client, project).await?;
     let mut input = json!({
         "projectId": project_id,
         "body": body,

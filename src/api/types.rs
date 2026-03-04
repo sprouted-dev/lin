@@ -111,7 +111,14 @@ pub struct ParentIssue {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IssueSearchData {
-    pub issue_search: Connection<Issue>,
+    pub search_issues: Connection<Issue>,
+}
+
+// --- Issues list ---
+
+#[derive(Debug, Deserialize)]
+pub struct IssuesData {
+    pub issues: Connection<Issue>,
 }
 
 // --- Issue by ID ---
@@ -451,4 +458,49 @@ pub struct IssueUpdateInput {
     pub label_ids: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parent_id: Option<String>,
+}
+
+// --- Cycles ---
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Cycle {
+    pub id: String,
+    pub number: Option<i32>,
+    pub name: Option<String>,
+    pub starts_at: Option<String>,
+    pub ends_at: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CyclesData {
+    pub cycles: Connection<Cycle>,
+}
+
+// --- Initiatives ---
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Initiative {
+    pub id: String,
+    pub name: String,
+    pub status: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct InitiativesData {
+    pub initiatives: Connection<Initiative>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct InitiativeDetail {
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub status: Option<String>,
+    pub projects: Option<Connection<ProjectSummary>>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct InitiativeDetailData {
+    pub initiative: InitiativeDetail,
 }

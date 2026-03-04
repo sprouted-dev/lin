@@ -94,25 +94,33 @@ pub async fn view(client: &LinearClient, id: &str) -> Result<()> {
 pub async fn create(
     client: &LinearClient,
     title: &str,
-    team_id: &str,
+    team: &str,
     description: Option<&str>,
     priority: Option<i32>,
-    assignee_id: Option<&str>,
-    project_id: Option<&str>,
+    assignee: Option<&str>,
+    project: Option<&str>,
     label_ids: Option<&[String]>,
     labels: Option<&[String]>,
-    parent_id: Option<&str>,
+    parent: Option<&str>,
     attachment_path: Option<&str>,
 ) -> Result<()> {
+    let team_id = resolve::resolve_team_identifier(client, team).await?;
+
     let mut input = IssueCreateInput {
         title: title.to_string(),
-        team_id: team_id.to_string(),
+        team_id,
         ..Default::default()
     };
     input.description = description.map(|s| s.to_string());
     input.priority = priority;
-    input.assignee_id = assignee_id.map(|s| s.to_string());
-    input.project_id = project_id.map(|s| s.to_string());
+    input.assignee_id = match assignee {
+        Some(aid) => Some(resolve::resolve_user_identifier(client, aid).await?),
+        None => None,
+    };
+    input.project_id = match project {
+        Some(p) => Some(resolve::resolve_project_identifier(client, p).await?),
+        None => None,
+    };
 
     // Resolve label names to IDs and merge with explicit label_ids
     let mut all_label_ids: Vec<String> = label_ids.map(|ids| ids.to_vec()).unwrap_or_default();
@@ -124,8 +132,8 @@ pub async fn create(
         input.label_ids = Some(all_label_ids);
     }
 
-    // Resolve parent_id if it's an identifier
-    if let Some(pid) = parent_id {
+    // Resolve parent if it's an identifier
+    if let Some(pid) = parent {
         let resolved = resolve::resolve_issue_identifier(client, pid).await?;
         input.parent_id = Some(resolved);
     }
@@ -166,13 +174,13 @@ pub async fn edit(
     title: Option<String>,
     description: Option<String>,
     priority: Option<i32>,
-    assignee_id: Option<String>,
+    assignee: Option<String>,
     state: Option<String>,
-    project_id: Option<String>,
+    project: Option<String>,
     label_ids: Option<Vec<String>>,
     labels: Option<Vec<String>>,
     remove_labels: Option<Vec<String>>,
-    parent_id: Option<String>,
+    parent: Option<String>,
     attachment_path: Option<String>,
 ) -> Result<()> {
     // Resolve label names
@@ -217,20 +225,30 @@ pub async fn edit(
         final_label_ids = Some(current_ids);
     }
 
-    // Resolve parent_id if it's an identifier
-    let resolved_parent = if let Some(ref pid) = parent_id {
+    // Resolve parent if it's an identifier
+    let resolved_parent = if let Some(ref pid) = parent {
         Some(resolve::resolve_issue_identifier(client, pid).await?)
     } else {
         None
+    };
+
+    let resolved_assignee = match assignee {
+        Some(aid) => Some(resolve::resolve_user_identifier(client, &aid).await?),
+        None => None,
+    };
+
+    let resolved_project = match project {
+        Some(ref p) => Some(resolve::resolve_project_identifier(client, p).await?),
+        None => None,
     };
 
     let input = IssueUpdateInput {
         title,
         description,
         priority,
-        assignee_id,
+        assignee_id: resolved_assignee,
         state_id: state,
-        project_id,
+        project_id: resolved_project,
         label_ids: final_label_ids,
         parent_id: resolved_parent,
     };
@@ -267,57 +285,107 @@ pub async fn edit(
 pub async fn search(
     client: &LinearClient,
     query: &str,
-    project_id: Option<&str>,
-    team_id: Option<&str>,
-    assignee_id: Option<&str>,
+    project: Option<&str>,
+    team: Option<&str>,
+    assignee: Option<&str>,
     status: Option<&str>,
     limit: i32,
 ) -> Result<()> {
     let mut filter = json!({});
-    if let Some(pid) = project_id {
-        filter["project"] = json!({ "id": { "eq": pid } });
+    if let Some(pid) = project {
+        let resolved = resolve::resolve_project_identifier(client, pid).await?;
+        filter["project"] = json!({ "id": { "eq": resolved } });
     }
-    if let Some(tid) = team_id {
-        filter["team"] = json!({ "id": { "eq": tid } });
+    if let Some(tid) = team {
+        let resolved = resolve::resolve_team_identifier(client, tid).await?;
+        filter["team"] = json!({ "id": { "eq": resolved } });
     }
-    if let Some(aid) = assignee_id {
-        filter["assignee"] = json!({ "id": { "eq": aid } });
+    if let Some(aid) = assignee {
+        let resolved = resolve::resolve_user_identifier(client, aid).await?;
+        filter["assignee"] = json!({ "id": { "eq": resolved } });
     }
     if let Some(s) = status {
         filter["state"] = json!({ "name": { "eq": s } });
     }
 
     let variables = json!({
-        "query": query,
+        "term": query,
         "first": limit,
         "filter": filter,
     });
 
     let data: IssueSearchData = client.execute(ISSUE_SEARCH_QUERY, Some(variables)).await?;
+    let issues = data.search_issues.nodes;
 
-    let issues = data.issue_search.nodes;
+    print_issues_table(&issues);
+    Ok(())
+}
 
-    output::print_header(&format!("Issues ({})", issues.len()));
+pub async fn list(
+    client: &LinearClient,
+    team: Option<&str>,
+    assignee: Option<&str>,
+    status: Option<&str>,
+    project: Option<&str>,
+    priority: Option<i32>,
+    limit: i32,
+) -> Result<()> {
+    let mut filter = json!({});
+    if let Some(tid) = team {
+        let resolved = resolve::resolve_team_identifier(client, tid).await?;
+        filter["team"] = json!({ "id": { "eq": resolved } });
+    }
+    if let Some(aid) = assignee {
+        let resolved = resolve::resolve_user_identifier(client, aid).await?;
+        filter["assignee"] = json!({ "id": { "eq": resolved } });
+    }
+    if let Some(s) = status {
+        filter["state"] = json!({ "name": { "eq": s } });
+    }
+    if let Some(pid) = project {
+        let resolved = resolve::resolve_project_identifier(client, pid).await?;
+        filter["project"] = json!({ "id": { "eq": resolved } });
+    }
+    if let Some(p) = priority {
+        filter["priority"] = json!({ "eq": p });
+    }
 
-    let headers = &["ID", "Title", "Status", "Assignee", "Team"];
-    let rows: Vec<Vec<String>> = issues
-        .iter()
-        .map(|i| {
-            vec![
-                i.identifier.clone(),
-                truncate(&i.title, 50),
-                i.state.as_ref().map(|s| s.name.clone()).unwrap_or_default(),
-                i.assignee
-                    .as_ref()
-                    .map(|a| a.name.clone())
-                    .unwrap_or_default(),
-                i.team.as_ref().map(|t| t.name.clone()).unwrap_or_default(),
-            ]
-        })
-        .collect();
+    let variables = json!({
+        "first": limit,
+        "filter": filter,
+    });
 
-    output::print_table(headers, &rows);
+    let data: IssuesData = client.execute(ISSUES_QUERY, Some(variables)).await?;
+    let issues = data.issues.nodes;
 
+    print_issues_table(&issues);
+    Ok(())
+}
+
+pub async fn me(client: &LinearClient, status: Option<&str>, limit: i32) -> Result<()> {
+    let viewer: ViewerData = client.execute(VIEWER_QUERY, None).await?;
+    let user_id = viewer.viewer.id;
+
+    let mut filter = json!({
+        "assignee": { "id": { "eq": user_id } }
+    });
+    if let Some(s) = status {
+        filter["state"] = json!({ "name": { "eq": s } });
+    }
+
+    let variables = json!({
+        "first": limit,
+        "filter": filter,
+    });
+
+    let data: IssuesData = client.execute(ISSUES_QUERY, Some(variables)).await?;
+    let issues = data.issues.nodes;
+
+    output::print_header(&format!(
+        "My Issues ({})",
+        viewer.viewer.display_name.as_deref().unwrap_or(&viewer.viewer.name)
+    ));
+    print_issues_table(&issues);
     Ok(())
 }
 
@@ -325,7 +393,7 @@ pub async fn state(
     client: &LinearClient,
     id: &str,
     new_state_name: Option<&str>,
-    list: bool,
+    list_flag: bool,
 ) -> Result<()> {
     // First fetch the issue to get current state and team
     let issue_data: IssueData = client
@@ -333,7 +401,7 @@ pub async fn state(
         .await?;
     let issue = issue_data.issue;
 
-    if list {
+    if list_flag {
         // List all available states grouped by type
         let team = issue
             .team
@@ -442,7 +510,7 @@ pub async fn state(
                 .iter()
                 .find(|s| s.name.to_lowercase() == target_lower);
 
-            let state = matching_state.ok_or_else(|| {
+            let ws = matching_state.ok_or_else(|| {
                 let available: Vec<&str> = team_data
                     .team
                     .states
@@ -458,7 +526,7 @@ pub async fn state(
             })?;
 
             let input = IssueUpdateInput {
-                state_id: Some(state.id.clone()),
+                state_id: Some(ws.id.clone()),
                 ..Default::default()
             };
 
@@ -475,7 +543,7 @@ pub async fn state(
 
             output::print_success(&format!(
                 "{} state changed to '{}'",
-                issue.identifier, state.name
+                issue.identifier, ws.name
             ));
         }
     }
@@ -514,6 +582,29 @@ pub async fn attachments(client: &LinearClient, id: &str) -> Result<()> {
 
     output::print_table(headers, &rows);
     Ok(())
+}
+
+fn print_issues_table(issues: &[Issue]) {
+    output::print_header(&format!("Issues ({})", issues.len()));
+
+    let headers = &["ID", "Title", "Status", "Assignee", "Team"];
+    let rows: Vec<Vec<String>> = issues
+        .iter()
+        .map(|i| {
+            vec![
+                i.identifier.clone(),
+                truncate(&i.title, 50),
+                i.state.as_ref().map(|s| s.name.clone()).unwrap_or_default(),
+                i.assignee
+                    .as_ref()
+                    .map(|a| a.name.clone())
+                    .unwrap_or_default(),
+                i.team.as_ref().map(|t| t.name.clone()).unwrap_or_default(),
+            ]
+        })
+        .collect();
+
+    output::print_table(headers, &rows);
 }
 
 fn truncate(s: &str, max: usize) -> String {

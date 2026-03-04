@@ -12,14 +12,13 @@ pub async fn run(client: &LinearClient) -> Result<()> {
     });
 
     let variables = json!({
-        "query": "",
         "first": 20,
         "filter": filter,
     });
 
-    let data: IssueSearchData = client.execute(ISSUE_SEARCH_QUERY, Some(variables)).await?;
+    let data: IssuesData = client.execute(ISSUES_QUERY, Some(variables)).await?;
 
-    let issues = data.issue_search.nodes;
+    let issues = data.issues.nodes;
     output::print_header(&format!(
         "Changelog — Recently Completed ({})",
         issues.len()

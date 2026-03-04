@@ -67,27 +67,27 @@ async fn run(cli: Cli) -> Result<()> {
                 }
                 IssueCommand::Create {
                     title,
-                    team_id,
+                    team,
                     description,
                     priority,
-                    assignee_id,
-                    project_id,
+                    assignee,
+                    project,
                     label_ids,
                     labels,
-                    parent_id,
+                    parent,
                     attachment,
                 } => {
                     commands::issue::create(
                         &ctx.client,
                         &title,
-                        &team_id,
+                        &team,
                         description.as_deref(),
                         priority,
-                        assignee_id.as_deref(),
-                        project_id.as_deref(),
+                        assignee.as_deref(),
+                        project.as_deref(),
                         label_ids.as_deref(),
                         labels.as_deref(),
-                        parent_id.as_deref(),
+                        parent.as_deref(),
                         attachment.as_deref(),
                     )
                     .await?;
@@ -97,13 +97,13 @@ async fn run(cli: Cli) -> Result<()> {
                     title,
                     description,
                     priority,
-                    assignee_id,
+                    assignee,
                     state,
-                    project_id,
+                    project,
                     label_ids,
                     labels,
                     remove_labels,
-                    parent_id,
+                    parent,
                     attachment,
                 } => {
                     commands::issue::edit(
@@ -112,36 +112,57 @@ async fn run(cli: Cli) -> Result<()> {
                         title,
                         description,
                         priority,
-                        assignee_id,
+                        assignee,
                         state,
-                        project_id,
+                        project,
                         label_ids,
                         labels,
                         remove_labels,
-                        parent_id,
+                        parent,
                         attachment,
                     )
                     .await?;
                 }
                 IssueCommand::Search {
                     query,
-                    project_id,
-                    team_id,
-                    assignee_id,
+                    project,
+                    team,
+                    assignee,
                     status,
                     limit,
                 } => {
-                    let q = query.as_deref().unwrap_or("");
                     commands::issue::search(
                         &ctx.client,
-                        q,
-                        project_id.as_deref(),
-                        team_id.as_deref(),
-                        assignee_id.as_deref(),
+                        &query,
+                        project.as_deref(),
+                        team.as_deref(),
+                        assignee.as_deref(),
                         status.as_deref(),
                         limit,
                     )
                     .await?;
+                }
+                IssueCommand::List {
+                    team,
+                    assignee,
+                    status,
+                    project,
+                    priority,
+                    limit,
+                } => {
+                    commands::issue::list(
+                        &ctx.client,
+                        team.as_deref(),
+                        assignee.as_deref(),
+                        status.as_deref(),
+                        project.as_deref(),
+                        priority,
+                        limit,
+                    )
+                    .await?;
+                }
+                IssueCommand::Me { status, limit } => {
+                    commands::issue::me(&ctx.client, status.as_deref(), limit).await?;
                 }
                 IssueCommand::State { id, name, list } => {
                     commands::issue::state(&ctx.client, &id, name.as_deref(), list).await?;
@@ -189,13 +210,13 @@ async fn run(cli: Cli) -> Result<()> {
                 }
                 ProjectCommand::Create {
                     name,
-                    team_ids,
+                    teams,
                     description,
                 } => {
                     commands::project::create(
                         &ctx.client,
                         &name,
-                        &team_ids,
+                        &teams,
                         description.as_deref(),
                     )
                     .await?;
@@ -216,17 +237,17 @@ async fn run(cli: Cli) -> Result<()> {
                     .await?;
                 }
                 ProjectCommand::Update(sub) => match sub {
-                    ProjectUpdateCommand::List { project_id } => {
-                        commands::project::update_list(&ctx.client, &project_id).await?;
+                    ProjectUpdateCommand::List { project } => {
+                        commands::project::update_list(&ctx.client, &project).await?;
                     }
                     ProjectUpdateCommand::Add {
-                        project_id,
+                        project,
                         body,
                         health,
                     } => {
                         commands::project::update_add(
                             &ctx.client,
-                            &project_id,
+                            &project,
                             &body,
                             health.as_deref(),
                         )
@@ -264,12 +285,12 @@ async fn run(cli: Cli) -> Result<()> {
         Commands::Label(cmd) => {
             let ctx = ensure_auth(ws_flag)?;
             match cmd {
-                LabelCommand::List { team_id } => {
-                    commands::label::list(&ctx.client, team_id.as_deref()).await?;
+                LabelCommand::List { team } => {
+                    commands::label::list(&ctx.client, team.as_deref()).await?;
                 }
                 LabelCommand::Create {
                     name,
-                    team_id,
+                    team,
                     color,
                     description,
                     parent_id,
@@ -277,12 +298,36 @@ async fn run(cli: Cli) -> Result<()> {
                     commands::label::create(
                         &ctx.client,
                         &name,
-                        &team_id,
+                        &team,
                         color.as_deref(),
                         description.as_deref(),
                         parent_id.as_deref(),
                     )
                     .await?;
+                }
+            }
+        }
+
+        Commands::Cycle(cmd) => {
+            let ctx = ensure_auth(ws_flag)?;
+            match cmd {
+                CycleCommand::List { team, limit } => {
+                    commands::cycle::list(&ctx.client, &team, limit).await?;
+                }
+                CycleCommand::Active { team } => {
+                    commands::cycle::active(&ctx.client, &team).await?;
+                }
+            }
+        }
+
+        Commands::Initiative(cmd) => {
+            let ctx = ensure_auth(ws_flag)?;
+            match cmd {
+                InitiativeCommand::List { limit } => {
+                    commands::initiative::list(&ctx.client, limit).await?;
+                }
+                InitiativeCommand::View { id } => {
+                    commands::initiative::view(&ctx.client, &id).await?;
                 }
             }
         }
