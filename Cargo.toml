@@ -1,0 +1,30 @@
+[package]
+name = "lin-cli"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.93.1"
+description = "A fast CLI for Linear"
+license = "MIT"
+repository = "https://github.com/sprouted-dev/lin"
+homepage = "https://github.com/sprouted-dev/lin"
+authors = ["Sprouted Dev"]
+keywords = ["linear", "cli", "project-management", "issue-tracker"]
+categories = ["command-line-utilities"]
+readme = "README.md"
+
+[[bin]]
+name = "lin"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+reqwest = { version = "0.13", features = ["json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+keyring = { version = "3", features = ["apple-native", "linux-native"] }
+thiserror = "2"
+anyhow = "1"
+colored = "3"
+time = { version = "0.3", features = ["formatting", "parsing"] }
+dirs = "6"
