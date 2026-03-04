@@ -60,9 +60,7 @@ pub async fn view(client: &LinearClient, id: &str) -> Result<()> {
         let rows: Vec<Vec<String>> = projects
             .nodes
             .iter()
-            .map(|p| {
-                vec![p.name.clone(), p.state.clone().unwrap_or_default()]
-            })
+            .map(|p| vec![p.name.clone(), p.state.clone().unwrap_or_default()])
             .collect();
         output::print_table(headers, &rows);
     }

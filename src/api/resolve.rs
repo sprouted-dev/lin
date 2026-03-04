@@ -92,10 +92,7 @@ pub async fn resolve_team_identifier(client: &LinearClient, identifier: &str) ->
 
 /// Resolve a project identifier (name, slug, or UUID) to a UUID.
 /// If already a UUID, returns as-is.
-pub async fn resolve_project_identifier(
-    client: &LinearClient,
-    identifier: &str,
-) -> Result<String> {
+pub async fn resolve_project_identifier(client: &LinearClient, identifier: &str) -> Result<String> {
     if is_uuid(identifier) {
         return Ok(identifier.to_string());
     }

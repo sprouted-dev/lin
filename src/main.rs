@@ -213,13 +213,8 @@ async fn run(cli: Cli) -> Result<()> {
                     teams,
                     description,
                 } => {
-                    commands::project::create(
-                        &ctx.client,
-                        &name,
-                        &teams,
-                        description.as_deref(),
-                    )
-                    .await?;
+                    commands::project::create(&ctx.client, &name, &teams, description.as_deref())
+                        .await?;
                 }
                 ProjectCommand::Edit {
                     id,

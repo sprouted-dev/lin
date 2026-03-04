@@ -383,7 +383,11 @@ pub async fn me(client: &LinearClient, status: Option<&str>, limit: i32) -> Resu
 
     output::print_header(&format!(
         "My Issues ({})",
-        viewer.viewer.display_name.as_deref().unwrap_or(&viewer.viewer.name)
+        viewer
+            .viewer
+            .display_name
+            .as_deref()
+            .unwrap_or(&viewer.viewer.name)
     ));
     print_issues_table(&issues);
     Ok(())
