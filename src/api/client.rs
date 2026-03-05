@@ -45,7 +45,10 @@ impl LinearClient {
             return Err(LinError::ApiError(format!("HTTP {status}: {text}")));
         }
 
-        let gql_response: GraphQLResponse<T> = response.json().await?;
+        let text = response.text().await?;
+        let gql_response: GraphQLResponse<T> = serde_json::from_str(&text).map_err(|e| {
+            LinError::ApiError(format!("Failed to decode response: {e}"))
+        })?;
 
         if let Some(errors) = gql_response.errors {
             let messages: Vec<String> = errors.into_iter().map(|e| e.message).collect();
