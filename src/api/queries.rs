@@ -326,6 +326,10 @@ pub const FILE_UPLOAD_MUTATION: &str = r#"
             uploadFile {
                 uploadUrl
                 assetUrl
+                headers {
+                    key
+                    value
+                }
             }
         }
     }
