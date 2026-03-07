@@ -120,7 +120,7 @@ pub const COMMENTS_QUERY: &str = r#"
                 nodes {
                     id
                     body
-                    user { name }
+                    user { id name }
                     createdAt
                     updatedAt
                 }
@@ -162,7 +162,7 @@ pub const PROJECTS_QUERY: &str = r#"
                 id
                 name
                 state
-                lead { name }
+                lead { id name }
                 startDate
                 targetDate
             }
@@ -177,7 +177,7 @@ pub const PROJECT_QUERY: &str = r#"
             name
             description
             state
-            lead { name }
+            lead { id name }
             members { nodes { name } }
             startDate
             targetDate
@@ -222,7 +222,7 @@ pub const PROJECT_UPDATES_QUERY: &str = r#"
                     body
                     health
                     createdAt
-                    user { name }
+                    user { id name }
                 }
             }
         }
@@ -326,6 +326,10 @@ pub const FILE_UPLOAD_MUTATION: &str = r#"
             uploadFile {
                 uploadUrl
                 assetUrl
+                headers {
+                    key
+                    value
+                }
             }
         }
     }
