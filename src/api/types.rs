@@ -413,6 +413,14 @@ pub struct FileUploadPayload {
 pub struct UploadFile {
     pub upload_url: String,
     pub asset_url: String,
+    #[serde(default)]
+    pub headers: Vec<UploadHeader>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UploadHeader {
+    pub key: String,
+    pub value: String,
 }
 
 #[derive(Debug, Deserialize)]

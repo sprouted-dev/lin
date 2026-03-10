@@ -58,15 +58,18 @@ pub async fn upload_file(client: &LinearClient, file_path: &str) -> Result<Strin
     let upload_url = &data.file_upload.upload_file.upload_url;
     let asset_url = data.file_upload.upload_file.asset_url.clone();
 
-    // Step 2: PUT file bytes to the presigned URL
+    // Step 2: PUT file bytes to the presigned URL with required signed headers
     let http_client = reqwest::Client::new();
-    let response = http_client
+    let mut request = http_client
         .put(upload_url)
         .header("Content-Type", content_type)
-        .header("Cache-Control", "public, max-age=31536000")
-        .body(file_bytes)
-        .send()
-        .await?;
+        .header("Cache-Control", "public, max-age=31536000");
+
+    for header in &data.file_upload.upload_file.headers {
+        request = request.header(&header.key, &header.value);
+    }
+
+    let response = request.body(file_bytes).send().await?;
 
     if !response.status().is_success() {
         let status = response.status();
