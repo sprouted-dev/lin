@@ -487,7 +487,11 @@ mod tests {
     fn issue_comment_parses() {
         let cli = parse(&["lin", "issue", "comment", "ENG-123", "Hello world"]);
         match cli.command {
-            Commands::Issue(IssueCommand::Comment { id, body, attachment }) => {
+            Commands::Issue(IssueCommand::Comment {
+                id,
+                body,
+                attachment,
+            }) => {
                 assert_eq!(id, "ENG-123");
                 assert_eq!(body, "Hello world");
                 assert!(attachment.is_none());
@@ -499,7 +503,13 @@ mod tests {
     #[test]
     fn issue_comment_with_attachment() {
         let cli = parse(&[
-            "lin", "issue", "comment", "ENG-1", "body text", "--attachment", "file.png",
+            "lin",
+            "issue",
+            "comment",
+            "ENG-1",
+            "body text",
+            "--attachment",
+            "file.png",
         ]);
         match cli.command {
             Commands::Issue(IssueCommand::Comment { attachment, .. }) => {
@@ -512,14 +522,18 @@ mod tests {
     #[test]
     fn issue_edit_with_comment() {
         let cli = parse(&[
-            "lin", "issue", "edit", "ENG-5", "--title", "New title", "--comment", "Looks good",
+            "lin",
+            "issue",
+            "edit",
+            "ENG-5",
+            "--title",
+            "New title",
+            "--comment",
+            "Looks good",
         ]);
         match cli.command {
             Commands::Issue(IssueCommand::Edit {
-                id,
-                title,
-                comment,
-                ..
+                id, title, comment, ..
             }) => {
                 assert_eq!(id, "ENG-5");
                 assert_eq!(title.as_deref(), Some("New title"));
