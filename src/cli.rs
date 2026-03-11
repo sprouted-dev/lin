@@ -159,6 +159,10 @@ pub enum IssueCommand {
         /// Attach a file to the issue
         #[arg(long)]
         attachment: Option<String>,
+
+        /// Add a comment to the issue after editing
+        #[arg(long)]
+        comment: Option<String>,
     },
     /// Search issues (requires a search term)
     Search {
@@ -237,6 +241,17 @@ pub enum IssueCommand {
     Attachments {
         /// Issue identifier (e.g., ENG-123) or UUID
         id: String,
+    },
+    /// Add a comment to an issue (alias for `lin comment add`)
+    Comment {
+        /// Issue identifier (e.g., ENG-123) or UUID
+        id: String,
+        /// Comment body
+        body: String,
+
+        /// Attach a file (uploads and embeds markdown link in body)
+        #[arg(long)]
+        attachment: Option<String>,
     },
 }
 
@@ -457,4 +472,97 @@ pub enum InitiativeCommand {
         /// Initiative ID
         id: String,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::Parser;
+
+    fn parse(args: &[&str]) -> Cli {
+        Cli::try_parse_from(args).expect("failed to parse")
+    }
+
+    #[test]
+    fn issue_comment_parses() {
+        let cli = parse(&["lin", "issue", "comment", "ENG-123", "Hello world"]);
+        match cli.command {
+            Commands::Issue(IssueCommand::Comment {
+                id,
+                body,
+                attachment,
+            }) => {
+                assert_eq!(id, "ENG-123");
+                assert_eq!(body, "Hello world");
+                assert!(attachment.is_none());
+            }
+            _ => panic!("expected Issue Comment"),
+        }
+    }
+
+    #[test]
+    fn issue_comment_with_attachment() {
+        let cli = parse(&[
+            "lin",
+            "issue",
+            "comment",
+            "ENG-1",
+            "body text",
+            "--attachment",
+            "file.png",
+        ]);
+        match cli.command {
+            Commands::Issue(IssueCommand::Comment { attachment, .. }) => {
+                assert_eq!(attachment.as_deref(), Some("file.png"));
+            }
+            _ => panic!("expected Issue Comment"),
+        }
+    }
+
+    #[test]
+    fn issue_edit_with_comment() {
+        let cli = parse(&[
+            "lin",
+            "issue",
+            "edit",
+            "ENG-5",
+            "--title",
+            "New title",
+            "--comment",
+            "Looks good",
+        ]);
+        match cli.command {
+            Commands::Issue(IssueCommand::Edit {
+                id, title, comment, ..
+            }) => {
+                assert_eq!(id, "ENG-5");
+                assert_eq!(title.as_deref(), Some("New title"));
+                assert_eq!(comment.as_deref(), Some("Looks good"));
+            }
+            _ => panic!("expected Issue Edit"),
+        }
+    }
+
+    #[test]
+    fn issue_edit_without_comment() {
+        let cli = parse(&["lin", "issue", "edit", "ENG-5", "--title", "New title"]);
+        match cli.command {
+            Commands::Issue(IssueCommand::Edit { comment, .. }) => {
+                assert!(comment.is_none());
+            }
+            _ => panic!("expected Issue Edit"),
+        }
+    }
+
+    #[test]
+    fn top_level_comment_add_still_works() {
+        let cli = parse(&["lin", "comment", "add", "ENG-1", "top level comment"]);
+        match cli.command {
+            Commands::Comment(CommentCommand::Add { id, body, .. }) => {
+                assert_eq!(id, "ENG-1");
+                assert_eq!(body, "top level comment");
+            }
+            _ => panic!("expected Comment Add"),
+        }
+    }
 }

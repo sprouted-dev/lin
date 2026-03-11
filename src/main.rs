@@ -105,6 +105,7 @@ async fn run(cli: Cli) -> Result<()> {
                     remove_labels,
                     parent,
                     attachment,
+                    comment,
                 } => {
                     commands::issue::edit(
                         &ctx.client,
@@ -122,6 +123,9 @@ async fn run(cli: Cli) -> Result<()> {
                         attachment,
                     )
                     .await?;
+                    if let Some(body) = comment {
+                        commands::comment::add(&ctx.client, &id, &body, None).await?;
+                    }
                 }
                 IssueCommand::Search {
                     query,
@@ -169,6 +173,13 @@ async fn run(cli: Cli) -> Result<()> {
                 }
                 IssueCommand::Attachments { id } => {
                     commands::issue::attachments(&ctx.client, &id).await?;
+                }
+                IssueCommand::Comment {
+                    id,
+                    body,
+                    attachment,
+                } => {
+                    commands::comment::add(&ctx.client, &id, &body, attachment.as_deref()).await?;
                 }
             }
         }
