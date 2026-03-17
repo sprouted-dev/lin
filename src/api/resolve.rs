@@ -116,6 +116,56 @@ pub async fn resolve_project_identifier(client: &LinearClient, identifier: &str)
     }
 }
 
+/// Resolve a workflow state name to a UUID for a given issue.
+/// Fetches the issue's team, then matches the state name case-insensitively.
+pub async fn resolve_state_name(
+    client: &LinearClient,
+    issue_id: &str,
+    state_name: &str,
+) -> Result<String> {
+    if is_uuid(state_name) {
+        return Ok(state_name.to_string());
+    }
+
+    let issue_data: IssueData = client
+        .execute(ISSUE_QUERY, Some(json!({ "id": issue_id })))
+        .await?;
+    let team = issue_data
+        .issue
+        .team
+        .ok_or_else(|| anyhow::anyhow!("Issue has no team"))?;
+
+    let team_data: TeamData = client
+        .execute(TEAM_STATES_QUERY, Some(json!({ "id": team.id })))
+        .await?;
+
+    let target_lower = state_name.to_lowercase();
+    let matching = team_data
+        .team
+        .states
+        .nodes
+        .iter()
+        .find(|s| s.name.to_lowercase() == target_lower);
+
+    match matching {
+        Some(state) => Ok(state.id.clone()),
+        None => {
+            let available: Vec<&str> = team_data
+                .team
+                .states
+                .nodes
+                .iter()
+                .map(|s| s.name.as_str())
+                .collect();
+            bail!(
+                "State '{}' not found. Available states: {}",
+                state_name,
+                available.join(", ")
+            )
+        }
+    }
+}
+
 /// Resolve label names to label IDs via case-insensitive matching.
 pub async fn resolve_label_names(client: &LinearClient, names: &[String]) -> Result<Vec<String>> {
     let data: LabelsData = client.execute(LABELS_QUERY, None).await?;
