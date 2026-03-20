@@ -263,6 +263,9 @@ async fn run(cli: Cli) -> Result<()> {
                         commands::project::update_edit(&ctx.client, &id, &body, health.as_deref())
                             .await?;
                     }
+                    ProjectUpdateCommand::Show { id } => {
+                        commands::project::update_show(&ctx.client, &id).await?;
+                    }
                     ProjectUpdateCommand::Delete { id } => {
                         commands::project::update_delete(&ctx.client, &id).await?;
                     }

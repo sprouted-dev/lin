@@ -181,6 +181,48 @@ pub async fn update_list(client: &LinearClient, project: &str) -> Result<()> {
     Ok(())
 }
 
+pub async fn update_show(client: &LinearClient, id: &str) -> Result<()> {
+    use crate::api::queries::PROJECT_UPDATE_QUERY;
+    use crate::api::types::ProjectUpdateData;
+
+    let data: ProjectUpdateData = client
+        .execute(PROJECT_UPDATE_QUERY, Some(json!({ "id": id })))
+        .await?;
+
+    let update = data.project_update;
+
+    let title = match &update.project {
+        Some(p) => format!("Project Update — {}", p.name),
+        None => "Project Update".to_string(),
+    };
+    output::print_header(&title);
+
+    if let Some(ref health) = update.health {
+        output::print_field("Health", health);
+    }
+    if let Some(ref user) = update.user {
+        output::print_field("Author", &user.name);
+    }
+    if let Some(ref created) = update.created_at {
+        output::print_field("Created", &output::format_date(created));
+    }
+    if let Some(ref updated) = update.updated_at {
+        output::print_field("Updated", &output::format_date(updated));
+    }
+    if let Some(ref url) = update.url {
+        output::print_field("URL", url);
+    }
+
+    if let Some(ref body) = update.body
+        && !body.is_empty()
+    {
+        println!();
+        println!("{body}");
+    }
+
+    Ok(())
+}
+
 fn validate_health(health: &str) -> Result<()> {
     match health {
         "onTrack" | "atRisk" | "offTrack" => Ok(()),

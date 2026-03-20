@@ -292,8 +292,23 @@ pub struct ProjectUpdate {
     pub id: String,
     pub body: Option<String>,
     pub health: Option<String>,
+    pub url: Option<String>,
     pub created_at: Option<String>,
+    pub updated_at: Option<String>,
     pub user: Option<User>,
+    pub project: Option<ProjectRef>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ProjectRef {
+    pub id: String,
+    pub name: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectUpdateData {
+    pub project_update: ProjectUpdate,
 }
 
 #[derive(Debug, Deserialize)]

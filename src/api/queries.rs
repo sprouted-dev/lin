@@ -229,6 +229,21 @@ pub const PROJECT_UPDATES_QUERY: &str = r#"
     }
 "#;
 
+pub const PROJECT_UPDATE_QUERY: &str = r#"
+    query ProjectUpdate($id: String!) {
+        projectUpdate(id: $id) {
+            id
+            body
+            health
+            url
+            createdAt
+            updatedAt
+            user { id name }
+            project { id name }
+        }
+    }
+"#;
+
 pub const PROJECT_UPDATE_CREATE_MUTATION: &str = r#"
     mutation ProjectUpdateCreate($input: ProjectUpdateCreateInput!) {
         projectUpdateCreate(input: $input) {

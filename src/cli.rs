@@ -389,6 +389,11 @@ pub enum ProjectUpdateCommand {
         #[arg(long)]
         health: Option<String>,
     },
+    /// Show a project update
+    Show {
+        /// Update ID (or prefix)
+        id: String,
+    },
     /// Delete a project update
     Delete {
         /// Update ID
