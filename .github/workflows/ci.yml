@@ -15,6 +15,7 @@ on:
       - "**/*.rs"
       - "Cargo.toml"
       - "Cargo.lock"
+      - "CHANGELOG.md"
       - ".github/workflows/ci.yml"
       - "rust-toolchain.toml"
       - "justfile"
@@ -70,3 +71,20 @@ jobs:
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: cargo test
+
+  changelog:
+    name: Changelog
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check CHANGELOG.md was updated
+        run: |
+          if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q '^CHANGELOG.md$'; then
+            echo "CHANGELOG.md updated"
+          else
+            echo "::error::CHANGELOG.md was not updated. Please add an entry under [Unreleased]."
+            exit 1
+          fi

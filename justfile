@@ -28,7 +28,7 @@ build:
 # Run all checks (format, lint, test)
 check: fmt-check lint test
 
-# Create a release tag and push it (usage: just release 0.1.0)
+# Create a release tag, push it, and create a GitHub Release (usage: just release 0.5.0)
 release version:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -46,6 +46,18 @@ release version:
         echo "Error: not on main branch (on $branch)"
         exit 1
     fi
+    # Extract release notes from CHANGELOG.md for this version
+    notes=$(awk '/^## \['"{{version}}"'\]/{found=1; next} /^## \[/{if(found) exit} found{print}' CHANGELOG.md)
+    if [ -z "$notes" ]; then
+        echo "Error: no changelog entry found for [{{version}}] in CHANGELOG.md"
+        exit 1
+    fi
+    # Verify [Unreleased] section exists (for next development cycle)
+    if ! grep -q '^\## \[Unreleased\]' CHANGELOG.md; then
+        echo "Error: CHANGELOG.md is missing [Unreleased] section"
+        exit 1
+    fi
     git tag -a "v{{version}}" -m "v{{version}}"
     git push origin "v{{version}}"
-    echo "Tagged and pushed v{{version}}"
+    echo "$notes" | gh release create "v{{version}}" --title "v{{version}}" --notes-file -
+    echo "Tagged, pushed, and released v{{version}}"
