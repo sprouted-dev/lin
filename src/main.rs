@@ -3,6 +3,7 @@ mod auth;
 mod cli;
 mod commands;
 mod config;
+mod date;
 mod error;
 mod output;
 mod workspace;
@@ -152,8 +153,26 @@ async fn run(cli: Cli) -> Result<()> {
                     status,
                     project,
                     priority,
+                    updated_since,
+                    updated_before,
+                    created_since,
+                    created_before,
+                    completed_since,
+                    completed_before,
+                    due_after,
+                    due_before,
                     limit,
                 } => {
+                    let date_filters = commands::issue::DateFilters {
+                        updated_since,
+                        updated_before,
+                        created_since,
+                        created_before,
+                        completed_since,
+                        completed_before,
+                        due_after,
+                        due_before,
+                    };
                     commands::issue::list(
                         &ctx.client,
                         team.as_deref(),
@@ -161,6 +180,7 @@ async fn run(cli: Cli) -> Result<()> {
                         status.as_deref(),
                         project.as_deref(),
                         priority,
+                        date_filters,
                         limit,
                     )
                     .await?;

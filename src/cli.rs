@@ -211,6 +211,38 @@ pub enum IssueCommand {
         #[arg(long)]
         priority: Option<i32>,
 
+        /// Filter issues updated on or after date (ISO 8601: 2026-03-24 or relative: 3d, 1w, 2h)
+        #[arg(long)]
+        updated_since: Option<String>,
+
+        /// Filter issues updated before date (ISO 8601: 2026-03-24 or relative: 3d, 1w, 2h)
+        #[arg(long)]
+        updated_before: Option<String>,
+
+        /// Filter issues created on or after date (ISO 8601: 2026-03-24 or relative: 3d, 1w, 2h)
+        #[arg(long)]
+        created_since: Option<String>,
+
+        /// Filter issues created before date (ISO 8601: 2026-03-24 or relative: 3d, 1w, 2h)
+        #[arg(long)]
+        created_before: Option<String>,
+
+        /// Filter issues completed on or after date (ISO 8601: 2026-03-24 or relative: 3d, 1w, 2h)
+        #[arg(long)]
+        completed_since: Option<String>,
+
+        /// Filter issues completed before date (ISO 8601: 2026-03-24 or relative: 3d, 1w, 2h)
+        #[arg(long)]
+        completed_before: Option<String>,
+
+        /// Filter issues due after date (ISO 8601: 2026-03-24 or relative: 3d, 1w, 2h)
+        #[arg(long)]
+        due_after: Option<String>,
+
+        /// Filter issues due before date (ISO 8601: 2026-03-24 or relative: 3d, 1w, 2h)
+        #[arg(long)]
+        due_before: Option<String>,
+
         /// Max results
         #[arg(long, default_value = "20")]
         limit: i32,
@@ -568,6 +600,90 @@ mod tests {
                 assert_eq!(body, "top level comment");
             }
             _ => panic!("expected Comment Add"),
+        }
+    }
+
+    #[test]
+    fn issue_list_with_date_filters() {
+        let cli = parse(&[
+            "lin",
+            "issue",
+            "list",
+            "--updated-since",
+            "3d",
+            "--updated-before",
+            "2026-03-24",
+        ]);
+        match cli.command {
+            Commands::Issue(IssueCommand::List {
+                updated_since,
+                updated_before,
+                ..
+            }) => {
+                assert_eq!(updated_since.as_deref(), Some("3d"));
+                assert_eq!(updated_before.as_deref(), Some("2026-03-24"));
+            }
+            _ => panic!("expected Issue List"),
+        }
+    }
+
+    #[test]
+    fn issue_list_with_all_date_filters() {
+        let cli = parse(&[
+            "lin",
+            "issue",
+            "list",
+            "--updated-since",
+            "1w",
+            "--created-since",
+            "2w",
+            "--completed-since",
+            "2026-01-01",
+            "--due-before",
+            "2026-12-31",
+        ]);
+        match cli.command {
+            Commands::Issue(IssueCommand::List {
+                updated_since,
+                created_since,
+                completed_since,
+                due_before,
+                ..
+            }) => {
+                assert_eq!(updated_since.as_deref(), Some("1w"));
+                assert_eq!(created_since.as_deref(), Some("2w"));
+                assert_eq!(completed_since.as_deref(), Some("2026-01-01"));
+                assert_eq!(due_before.as_deref(), Some("2026-12-31"));
+            }
+            _ => panic!("expected Issue List"),
+        }
+    }
+
+    #[test]
+    fn issue_list_combines_with_existing_filters() {
+        let cli = parse(&[
+            "lin",
+            "issue",
+            "list",
+            "--team",
+            "engineering",
+            "--status",
+            "In Progress",
+            "--updated-since",
+            "3d",
+        ]);
+        match cli.command {
+            Commands::Issue(IssueCommand::List {
+                team,
+                status,
+                updated_since,
+                ..
+            }) => {
+                assert_eq!(team.as_deref(), Some("engineering"));
+                assert_eq!(status.as_deref(), Some("In Progress"));
+                assert_eq!(updated_since.as_deref(), Some("3d"));
+            }
+            _ => panic!("expected Issue List"),
         }
     }
 }
