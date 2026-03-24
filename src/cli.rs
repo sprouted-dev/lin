@@ -269,11 +269,9 @@ pub enum IssueCommand {
         #[arg(long)]
         list: bool,
     },
-    /// List attachments on an issue
-    Attachments {
-        /// Issue identifier (e.g., ENG-123) or UUID
-        id: String,
-    },
+    /// Manage issue attachments
+    #[command(subcommand)]
+    Attachments(AttachmentCommand),
     /// Add a comment to an issue (alias for `lin comment add`)
     Comment {
         /// Issue identifier (e.g., ENG-123) or UUID
@@ -284,6 +282,25 @@ pub enum IssueCommand {
         /// Attach a file (uploads and embeds markdown link in body)
         #[arg(long)]
         attachment: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum AttachmentCommand {
+    /// List attachments on an issue
+    List {
+        /// Issue identifier (e.g., ENG-123) or UUID
+        id: String,
+    },
+    /// Add a file attachment to an issue
+    Add {
+        /// Issue identifier (e.g., ENG-123) or UUID
+        id: String,
+        /// Path to the file to attach
+        file: String,
+        /// Custom title for the attachment (defaults to filename)
+        #[arg(long)]
+        title: Option<String>,
     },
 }
 
@@ -588,6 +605,63 @@ mod tests {
                 assert!(comment.is_none());
             }
             _ => panic!("expected Issue Edit"),
+        }
+    }
+
+    #[test]
+    fn issue_attachments_list_parses() {
+        let cli = parse(&["lin", "issue", "attachments", "list", "ENG-10"]);
+        match cli.command {
+            Commands::Issue(IssueCommand::Attachments(AttachmentCommand::List { id })) => {
+                assert_eq!(id, "ENG-10");
+            }
+            _ => panic!("expected Issue Attachments List"),
+        }
+    }
+
+    #[test]
+    fn issue_attachments_add_parses() {
+        let cli = parse(&[
+            "lin",
+            "issue",
+            "attachments",
+            "add",
+            "ENG-10",
+            "screenshot.png",
+        ]);
+        match cli.command {
+            Commands::Issue(IssueCommand::Attachments(AttachmentCommand::Add {
+                id,
+                file,
+                title,
+            })) => {
+                assert_eq!(id, "ENG-10");
+                assert_eq!(file, "screenshot.png");
+                assert!(title.is_none());
+            }
+            _ => panic!("expected Issue Attachments Add"),
+        }
+    }
+
+    #[test]
+    fn issue_attachments_add_with_title() {
+        let cli = parse(&[
+            "lin",
+            "issue",
+            "attachments",
+            "add",
+            "ENG-10",
+            "screenshot.png",
+            "--title",
+            "My Screenshot",
+        ]);
+        match cli.command {
+            Commands::Issue(IssueCommand::Attachments(AttachmentCommand::Add {
+                title, ..
+            })) => {
+                assert_eq!(title.as_deref(), Some("My Screenshot"));
+            }
+            _ => panic!("expected Issue Attachments Add"),
         }
     }
 

@@ -632,6 +632,24 @@ pub async fn state(
     Ok(())
 }
 
+pub async fn attachment_add(
+    client: &LinearClient,
+    id: &str,
+    file_path: &str,
+    title: Option<&str>,
+) -> Result<()> {
+    let issue_id = resolve::resolve_issue_identifier(client, id).await?;
+    let asset_url = upload::upload_file(client, file_path).await?;
+    let filename = std::path::Path::new(file_path)
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "attachment".to_string());
+    let attachment_title = title.unwrap_or(&filename);
+    upload::create_attachment(client, &issue_id, &asset_url, attachment_title).await?;
+    output::print_success(&format!("Attached '{}' to {}", attachment_title, id));
+    Ok(())
+}
+
 pub async fn attachments(client: &LinearClient, id: &str) -> Result<()> {
     let data: IssueAttachmentsData = client
         .execute(ISSUE_ATTACHMENTS_QUERY, Some(json!({ "id": id })))
