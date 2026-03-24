@@ -621,7 +621,14 @@ mod tests {
 
     #[test]
     fn issue_attachments_add_parses() {
-        let cli = parse(&["lin", "issue", "attachments", "add", "ENG-10", "screenshot.png"]);
+        let cli = parse(&[
+            "lin",
+            "issue",
+            "attachments",
+            "add",
+            "ENG-10",
+            "screenshot.png",
+        ]);
         match cli.command {
             Commands::Issue(IssueCommand::Attachments(AttachmentCommand::Add {
                 id,
@@ -649,7 +656,9 @@ mod tests {
             "My Screenshot",
         ]);
         match cli.command {
-            Commands::Issue(IssueCommand::Attachments(AttachmentCommand::Add { title, .. })) => {
+            Commands::Issue(IssueCommand::Attachments(AttachmentCommand::Add {
+                title, ..
+            })) => {
                 assert_eq!(title.as_deref(), Some("My Screenshot"));
             }
             _ => panic!("expected Issue Attachments Add"),

@@ -196,13 +196,8 @@ async fn run(cli: Cli) -> Result<()> {
                         commands::issue::attachments(&ctx.client, &id).await?;
                     }
                     AttachmentCommand::Add { id, file, title } => {
-                        commands::issue::attachment_add(
-                            &ctx.client,
-                            &id,
-                            &file,
-                            title.as_deref(),
-                        )
-                        .await?;
+                        commands::issue::attachment_add(&ctx.client, &id, &file, title.as_deref())
+                            .await?;
                     }
                 },
                 IssueCommand::Comment {

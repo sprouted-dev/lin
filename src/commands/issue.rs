@@ -638,9 +638,6 @@ pub async fn attachment_add(
     file_path: &str,
     title: Option<&str>,
 ) -> Result<()> {
-    if !std::path::Path::new(file_path).exists() {
-        bail!("File not found: {}", file_path);
-    }
     let issue_id = resolve::resolve_issue_identifier(client, id).await?;
     let asset_url = upload::upload_file(client, file_path).await?;
     let filename = std::path::Path::new(file_path)
