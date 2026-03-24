@@ -345,20 +345,33 @@ pub async fn list(
     client: &LinearClient,
     team: Option<&str>,
     assignee: Option<&str>,
+    creator: Option<&str>,
     status: Option<&str>,
     project: Option<&str>,
     priority: Option<i32>,
+    labels: Option<&[String]>,
+    cycle: Option<&str>,
     date_filters: DateFilters,
     limit: i32,
 ) -> Result<()> {
     let mut filter = json!({});
-    if let Some(tid) = team {
+
+    // Resolve team first since cycle depends on it
+    let resolved_team_id = if let Some(tid) = team {
         let resolved = resolve::resolve_team_identifier(client, tid).await?;
-        filter["team"] = json!({ "id": { "eq": resolved } });
-    }
+        filter["team"] = json!({ "id": { "eq": &resolved } });
+        Some(resolved)
+    } else {
+        None
+    };
+
     if let Some(aid) = assignee {
         let resolved = resolve::resolve_user_identifier(client, aid).await?;
         filter["assignee"] = json!({ "id": { "eq": resolved } });
+    }
+    if let Some(cid) = creator {
+        let resolved = resolve::resolve_user_identifier(client, cid).await?;
+        filter["creator"] = json!({ "id": { "eq": resolved } });
     }
     if let Some(s) = status {
         filter["state"] = json!({ "name": { "eq": s } });
@@ -369,6 +382,15 @@ pub async fn list(
     }
     if let Some(p) = priority {
         filter["priority"] = json!({ "eq": p });
+    }
+
+    // Handle cycle filter (requires team)
+    if let Some(cyc) = cycle {
+        let team_id = resolved_team_id.as_ref().ok_or_else(|| {
+            anyhow::anyhow!("--cycle requires --team to be specified (cycles are team-scoped)")
+        })?;
+        let resolved = resolve::resolve_cycle_identifier(client, team_id, cyc).await?;
+        filter["cycle"] = json!({ "id": { "eq": resolved } });
     }
 
     // Apply date filters
@@ -397,9 +419,31 @@ pub async fn list(
         date_filters.due_before.as_deref(),
     )?;
 
+    // Handle label filters with AND logic (multiple --label flags require all labels)
+    let final_filter = if let Some(label_names) = labels {
+        if label_names.is_empty() {
+            filter
+        } else {
+            // Build array of label conditions that will be ANDed together
+            let mut and_conditions: Vec<serde_json::Value> = label_names
+                .iter()
+                .map(|name| json!({ "labels": { "some": { "name": { "eqIgnoreCase": name } } } }))
+                .collect();
+
+            // Add the base filter to the AND conditions if it has any fields
+            if filter.as_object().map(|o| !o.is_empty()).unwrap_or(false) {
+                and_conditions.push(filter);
+            }
+
+            json!({ "and": and_conditions })
+        }
+    } else {
+        filter
+    };
+
     let variables = json!({
         "first": limit,
-        "filter": filter,
+        "filter": final_filter,
     });
 
     let data: IssuesData = client.execute(ISSUES_QUERY, Some(variables)).await?;

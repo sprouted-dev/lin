@@ -199,6 +199,10 @@ pub enum IssueCommand {
         #[arg(long)]
         assignee: Option<String>,
 
+        /// Filter by creator (name, email, "me", or UUID)
+        #[arg(long)]
+        creator: Option<String>,
+
         /// Filter by status name
         #[arg(long)]
         status: Option<String>,
@@ -210,6 +214,14 @@ pub enum IssueCommand {
         /// Filter by priority (0=None, 1=Urgent, 2=High, 3=Medium, 4=Low)
         #[arg(long)]
         priority: Option<i32>,
+
+        /// Filter by label name (repeatable for AND logic)
+        #[arg(long = "label", action = clap::ArgAction::Append)]
+        labels: Option<Vec<String>>,
+
+        /// Filter by cycle (name, number, or "current" for active cycle; requires --team)
+        #[arg(long)]
+        cycle: Option<String>,
 
         /// Filter issues updated on or after date (ISO 8601: 2026-03-24 or relative: 3d, 1w, 2h)
         #[arg(long)]
@@ -756,6 +768,115 @@ mod tests {
                 assert_eq!(team.as_deref(), Some("engineering"));
                 assert_eq!(status.as_deref(), Some("In Progress"));
                 assert_eq!(updated_since.as_deref(), Some("3d"));
+            }
+            _ => panic!("expected Issue List"),
+        }
+    }
+
+    #[test]
+    fn issue_list_with_single_label() {
+        let cli = parse(&["lin", "issue", "list", "--label", "bug"]);
+        match cli.command {
+            Commands::Issue(IssueCommand::List { labels, .. }) => {
+                assert_eq!(labels, Some(vec!["bug".to_string()]));
+            }
+            _ => panic!("expected Issue List"),
+        }
+    }
+
+    #[test]
+    fn issue_list_with_multiple_labels() {
+        let cli = parse(&[
+            "lin", "issue", "list", "--label", "bug", "--label", "urgent",
+        ]);
+        match cli.command {
+            Commands::Issue(IssueCommand::List { labels, .. }) => {
+                assert_eq!(labels, Some(vec!["bug".to_string(), "urgent".to_string()]));
+            }
+            _ => panic!("expected Issue List"),
+        }
+    }
+
+    #[test]
+    fn issue_list_with_cycle() {
+        let cli = parse(&[
+            "lin", "issue", "list", "--team", "eng", "--cycle", "current",
+        ]);
+        match cli.command {
+            Commands::Issue(IssueCommand::List { team, cycle, .. }) => {
+                assert_eq!(team.as_deref(), Some("eng"));
+                assert_eq!(cycle.as_deref(), Some("current"));
+            }
+            _ => panic!("expected Issue List"),
+        }
+    }
+
+    #[test]
+    fn issue_list_with_cycle_number() {
+        let cli = parse(&["lin", "issue", "list", "--team", "eng", "--cycle", "42"]);
+        match cli.command {
+            Commands::Issue(IssueCommand::List { cycle, .. }) => {
+                assert_eq!(cycle.as_deref(), Some("42"));
+            }
+            _ => panic!("expected Issue List"),
+        }
+    }
+
+    #[test]
+    fn issue_list_with_creator() {
+        let cli = parse(&["lin", "issue", "list", "--creator", "me"]);
+        match cli.command {
+            Commands::Issue(IssueCommand::List { creator, .. }) => {
+                assert_eq!(creator.as_deref(), Some("me"));
+            }
+            _ => panic!("expected Issue List"),
+        }
+    }
+
+    #[test]
+    fn issue_list_with_creator_email() {
+        let cli = parse(&["lin", "issue", "list", "--creator", "user@example.com"]);
+        match cli.command {
+            Commands::Issue(IssueCommand::List { creator, .. }) => {
+                assert_eq!(creator.as_deref(), Some("user@example.com"));
+            }
+            _ => panic!("expected Issue List"),
+        }
+    }
+
+    #[test]
+    fn issue_list_combines_all_new_filters() {
+        let cli = parse(&[
+            "lin",
+            "issue",
+            "list",
+            "--team",
+            "eng",
+            "--label",
+            "bug",
+            "--label",
+            "p0",
+            "--cycle",
+            "current",
+            "--creator",
+            "me",
+            "--assignee",
+            "alice",
+        ]);
+        match cli.command {
+            Commands::Issue(IssueCommand::List {
+                team,
+                labels,
+                cycle,
+                creator,
+                assignee,
+                ..
+            }) => {
+                assert_eq!(team.as_deref(), Some("eng"));
+                assert_eq!(labels, Some(vec!["bug".to_string(), "p0".to_string()]));
+                assert_eq!(cycle.as_deref(), Some("current"));
+                assert_eq!(creator.as_deref(), Some("me"));
+                assert_eq!(assignee.as_deref(), Some("alice"));
             }
             _ => panic!("expected Issue List"),
         }

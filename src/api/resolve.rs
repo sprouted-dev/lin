@@ -166,6 +166,84 @@ pub async fn resolve_state_name(
     }
 }
 
+/// Resolve a cycle identifier (name, number, "current", or UUID) to a UUID.
+/// Requires a pre-resolved team_id since cycles are team-scoped.
+/// If identifier is "current", returns the active cycle for the team.
+pub async fn resolve_cycle_identifier(
+    client: &LinearClient,
+    team_id: &str,
+    identifier: &str,
+) -> Result<String> {
+    if is_uuid(identifier) {
+        return Ok(identifier.to_string());
+    }
+
+    // Handle "current" to get the active cycle
+    if identifier.eq_ignore_ascii_case("current") {
+        let variables = json!({
+            "first": 1,
+            "filter": {
+                "team": { "id": { "eq": team_id } },
+                "isActive": { "eq": true }
+            },
+        });
+
+        let data: CyclesData = client.execute(CYCLES_QUERY, Some(variables)).await?;
+        match data.cycles.nodes.first() {
+            Some(cycle) => return Ok(cycle.id.clone()),
+            None => bail!("No active cycle found for this team."),
+        }
+    }
+
+    // Fetch all cycles for the team
+    let variables = json!({
+        "first": 100,
+        "filter": { "team": { "id": { "eq": team_id } } },
+    });
+
+    let data: CyclesData = client.execute(CYCLES_QUERY, Some(variables)).await?;
+    let lower = identifier.to_lowercase();
+
+    // Try matching by number first (if identifier is numeric)
+    if let Ok(num) = identifier.parse::<i32>()
+        && let Some(cycle) = data.cycles.nodes.iter().find(|c| c.number == Some(num))
+    {
+        return Ok(cycle.id.clone());
+    }
+
+    // Try matching by name
+    let found = data
+        .cycles
+        .nodes
+        .iter()
+        .find(|c| c.name.as_ref().map(|n| n.to_lowercase()) == Some(lower.clone()));
+
+    match found {
+        Some(cycle) => Ok(cycle.id.clone()),
+        None => {
+            let available: Vec<String> = data
+                .cycles
+                .nodes
+                .iter()
+                .map(|c| {
+                    let num = c.number.map(|n| n.to_string()).unwrap_or_default();
+                    let name = c.name.clone().unwrap_or_default();
+                    if name.is_empty() {
+                        format!("#{}", num)
+                    } else {
+                        format!("{} (#{num})", name)
+                    }
+                })
+                .collect();
+            bail!(
+                "Cycle '{}' not found. Available cycles: {}",
+                identifier,
+                available.join(", ")
+            )
+        }
+    }
+}
+
 /// Resolve label names to label IDs via case-insensitive matching.
 pub async fn resolve_label_names(client: &LinearClient, names: &[String]) -> Result<Vec<String>> {
     let data: LabelsData = client.execute(LABELS_QUERY, None).await?;
