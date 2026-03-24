@@ -6,7 +6,21 @@ use crate::api::queries::*;
 use crate::api::resolve;
 use crate::api::types::*;
 use crate::api::upload;
+use crate::date;
 use crate::output;
+
+/// Date filter options for issue listing
+#[derive(Default)]
+pub struct DateFilters {
+    pub updated_since: Option<String>,
+    pub updated_before: Option<String>,
+    pub created_since: Option<String>,
+    pub created_before: Option<String>,
+    pub completed_since: Option<String>,
+    pub completed_before: Option<String>,
+    pub due_after: Option<String>,
+    pub due_before: Option<String>,
+}
 
 pub async fn view(client: &LinearClient, id: &str) -> Result<()> {
     let data: IssueData = client
@@ -321,6 +335,7 @@ pub async fn search(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn list(
     client: &LinearClient,
     team: Option<&str>,
@@ -328,6 +343,7 @@ pub async fn list(
     status: Option<&str>,
     project: Option<&str>,
     priority: Option<i32>,
+    date_filters: DateFilters,
     limit: i32,
 ) -> Result<()> {
     let mut filter = json!({});
@@ -350,6 +366,32 @@ pub async fn list(
         filter["priority"] = json!({ "eq": p });
     }
 
+    // Apply date filters
+    apply_date_filter(
+        &mut filter,
+        "updatedAt",
+        date_filters.updated_since.as_deref(),
+        date_filters.updated_before.as_deref(),
+    )?;
+    apply_date_filter(
+        &mut filter,
+        "createdAt",
+        date_filters.created_since.as_deref(),
+        date_filters.created_before.as_deref(),
+    )?;
+    apply_date_filter(
+        &mut filter,
+        "completedAt",
+        date_filters.completed_since.as_deref(),
+        date_filters.completed_before.as_deref(),
+    )?;
+    apply_date_filter(
+        &mut filter,
+        "dueDate",
+        date_filters.due_after.as_deref(),
+        date_filters.due_before.as_deref(),
+    )?;
+
     let variables = json!({
         "first": limit,
         "filter": filter,
@@ -359,6 +401,36 @@ pub async fn list(
     let issues = data.issues.nodes;
 
     print_issues_table(&issues);
+    Ok(())
+}
+
+/// Applies a date filter to the filter object.
+/// For updatedAt/createdAt/completedAt: uses "gte" for since and "lt" for before
+/// For dueDate: uses "gt" for after and "lt" for before
+fn apply_date_filter(
+    filter: &mut serde_json::Value,
+    field: &str,
+    since_or_after: Option<&str>,
+    before: Option<&str>,
+) -> Result<()> {
+    let since_key = if field == "dueDate" { "gt" } else { "gte" };
+
+    let since_parsed = since_or_after.map(date::parse_date).transpose()?;
+    let before_parsed = before.map(date::parse_date).transpose()?;
+
+    match (since_parsed, before_parsed) {
+        (Some(s), Some(b)) => {
+            filter[field] = json!({ since_key: s, "lt": b });
+        }
+        (Some(s), None) => {
+            filter[field] = json!({ since_key: s });
+        }
+        (None, Some(b)) => {
+            filter[field] = json!({ "lt": b });
+        }
+        (None, None) => {}
+    }
+
     Ok(())
 }
 
