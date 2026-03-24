@@ -20,6 +20,20 @@ pub struct DateFilters {
     pub completed_before: Option<String>,
     pub due_after: Option<String>,
     pub due_before: Option<String>,
+    pub cancelled_since: Option<String>,
+}
+
+/// Convenience filter options for issue listing
+#[derive(Default)]
+pub struct ConvenienceFilters {
+    pub estimate: Option<f64>,
+    pub estimate_gte: Option<f64>,
+    pub estimate_lte: Option<f64>,
+    pub parent: Option<String>,
+    pub no_parent: bool,
+    pub has_children: bool,
+    pub subscriber: Option<String>,
+    pub title: Option<String>,
 }
 
 pub async fn view(client: &LinearClient, id: &str) -> Result<()> {
@@ -352,6 +366,7 @@ pub async fn list(
     labels: Option<&[String]>,
     cycle: Option<&str>,
     date_filters: DateFilters,
+    convenience_filters: ConvenienceFilters,
     limit: i32,
 ) -> Result<()> {
     let mut filter = json!({});
@@ -419,6 +434,47 @@ pub async fn list(
         date_filters.due_before.as_deref(),
     )?;
 
+    // Apply cancelled_since filter
+    if let Some(ref cancelled_since) = date_filters.cancelled_since {
+        let parsed = date::parse_date(cancelled_since)?;
+        filter["cancelledAt"] = json!({ "gte": parsed });
+    }
+
+    // Apply estimate filters
+    apply_estimate_filter(
+        &mut filter,
+        convenience_filters.estimate,
+        convenience_filters.estimate_gte,
+        convenience_filters.estimate_lte,
+    );
+
+    // Apply parent filter
+    if let Some(ref parent_id) = convenience_filters.parent {
+        let resolved = resolve::resolve_issue_identifier(client, parent_id).await?;
+        filter["parent"] = json!({ "id": { "eq": resolved } });
+    }
+
+    // Apply no-parent filter (top-level issues only)
+    if convenience_filters.no_parent {
+        filter["parent"] = json!({ "null": true });
+    }
+
+    // Apply has-children filter
+    if convenience_filters.has_children {
+        filter["children"] = json!({ "some": {} });
+    }
+
+    // Apply subscriber filter
+    if let Some(ref subscriber) = convenience_filters.subscriber {
+        let resolved = resolve::resolve_user_identifier(client, subscriber).await?;
+        filter["subscribers"] = json!({ "some": { "id": { "eq": resolved } } });
+    }
+
+    // Apply title filter
+    if let Some(ref title) = convenience_filters.title {
+        filter["title"] = json!({ "contains": title });
+    }
+
     // Handle label filters with AND logic (multiple --label flags require all labels)
     let final_filter = if let Some(label_names) = labels {
         if label_names.is_empty() {
@@ -481,6 +537,32 @@ fn apply_date_filter(
     }
 
     Ok(())
+}
+
+/// Applies estimate filters to the filter object.
+/// Supports exact match, greater-than-or-equal, and less-than-or-equal comparisons.
+fn apply_estimate_filter(
+    filter: &mut serde_json::Value,
+    exact: Option<f64>,
+    gte: Option<f64>,
+    lte: Option<f64>,
+) {
+    if let Some(val) = exact {
+        filter["estimate"] = json!({ "eq": val });
+    } else {
+        match (gte, lte) {
+            (Some(g), Some(l)) => {
+                filter["estimate"] = json!({ "gte": g, "lte": l });
+            }
+            (Some(g), None) => {
+                filter["estimate"] = json!({ "gte": g });
+            }
+            (None, Some(l)) => {
+                filter["estimate"] = json!({ "lte": l });
+            }
+            (None, None) => {}
+        }
+    }
 }
 
 pub async fn me(client: &LinearClient, status: Option<&str>, limit: i32) -> Result<()> {
