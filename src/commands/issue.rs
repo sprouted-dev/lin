@@ -251,6 +251,11 @@ pub async fn edit(
         None => None,
     };
 
+    let resolved_state = match state {
+        Some(ref s) => Some(resolve::resolve_state_name(client, id, s).await?),
+        None => None,
+    };
+
     let resolved_project = match project {
         Some(ref p) => Some(resolve::resolve_project_identifier(client, p).await?),
         None => None,
@@ -261,7 +266,7 @@ pub async fn edit(
         description,
         priority,
         assignee_id: resolved_assignee,
-        state_id: state,
+        state_id: resolved_state,
         project_id: resolved_project,
         label_ids: final_label_ids,
         parent_id: resolved_parent,
