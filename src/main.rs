@@ -164,6 +164,15 @@ async fn run(cli: Cli) -> Result<()> {
                     completed_before,
                     due_after,
                     due_before,
+                    cancelled_since,
+                    estimate,
+                    estimate_gte,
+                    estimate_lte,
+                    parent,
+                    no_parent,
+                    has_children,
+                    subscriber,
+                    title,
                     limit,
                 } => {
                     let date_filters = commands::issue::DateFilters {
@@ -175,6 +184,17 @@ async fn run(cli: Cli) -> Result<()> {
                         completed_before,
                         due_after,
                         due_before,
+                        cancelled_since,
+                    };
+                    let convenience_filters = commands::issue::ConvenienceFilters {
+                        estimate,
+                        estimate_gte,
+                        estimate_lte,
+                        parent,
+                        no_parent,
+                        has_children,
+                        subscriber,
+                        title,
                     };
                     commands::issue::list(
                         &ctx.client,
@@ -187,6 +207,7 @@ async fn run(cli: Cli) -> Result<()> {
                         labels.as_deref(),
                         cycle.as_deref(),
                         date_filters,
+                        convenience_filters,
                         limit,
                     )
                     .await?;

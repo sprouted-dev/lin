@@ -65,6 +65,7 @@ pub enum Commands {
 }
 
 #[derive(Subcommand)]
+#[allow(clippy::large_enum_variant)]
 pub enum IssueCommand {
     /// View issue details
     View {
@@ -255,6 +256,42 @@ pub enum IssueCommand {
         /// Filter issues due before date (ISO 8601: 2026-03-24 or relative: 3d, 1w, 2h)
         #[arg(long)]
         due_before: Option<String>,
+
+        /// Filter issues cancelled on or after date (ISO 8601: 2026-03-24 or relative: 3d, 1w, 2h)
+        #[arg(long)]
+        cancelled_since: Option<String>,
+
+        /// Filter by exact estimate (story points)
+        #[arg(long)]
+        estimate: Option<f64>,
+
+        /// Filter by minimum estimate (story points)
+        #[arg(long)]
+        estimate_gte: Option<f64>,
+
+        /// Filter by maximum estimate (story points)
+        #[arg(long)]
+        estimate_lte: Option<f64>,
+
+        /// Filter by parent issue (identifier like APP-123 or UUID)
+        #[arg(long)]
+        parent: Option<String>,
+
+        /// Show only top-level issues (no parent)
+        #[arg(long)]
+        no_parent: bool,
+
+        /// Show only issues that have sub-issues
+        #[arg(long)]
+        has_children: bool,
+
+        /// Filter by subscriber (name, email, "me", or UUID)
+        #[arg(long)]
+        subscriber: Option<String>,
+
+        /// Filter by title (substring match)
+        #[arg(long)]
+        title: Option<String>,
 
         /// Max results
         #[arg(long, default_value = "20")]
@@ -878,6 +915,143 @@ mod tests {
                 assert_eq!(cycle.as_deref(), Some("current"));
                 assert_eq!(creator.as_deref(), Some("me"));
                 assert_eq!(assignee.as_deref(), Some("alice"));
+            }
+            _ => panic!("expected Issue List"),
+        }
+    }
+
+    #[test]
+    fn issue_list_with_cancelled_since() {
+        let cli = parse(&["lin", "issue", "list", "--cancelled-since", "1w"]);
+        match cli.command {
+            Commands::Issue(IssueCommand::List {
+                cancelled_since, ..
+            }) => {
+                assert_eq!(cancelled_since.as_deref(), Some("1w"));
+            }
+            _ => panic!("expected Issue List"),
+        }
+    }
+
+    #[test]
+    fn issue_list_with_estimate_exact() {
+        let cli = parse(&["lin", "issue", "list", "--estimate", "3"]);
+        match cli.command {
+            Commands::Issue(IssueCommand::List { estimate, .. }) => {
+                assert_eq!(estimate, Some(3.0));
+            }
+            _ => panic!("expected Issue List"),
+        }
+    }
+
+    #[test]
+    fn issue_list_with_estimate_range() {
+        let cli = parse(&[
+            "lin",
+            "issue",
+            "list",
+            "--estimate-gte",
+            "2",
+            "--estimate-lte",
+            "8",
+        ]);
+        match cli.command {
+            Commands::Issue(IssueCommand::List {
+                estimate_gte,
+                estimate_lte,
+                ..
+            }) => {
+                assert_eq!(estimate_gte, Some(2.0));
+                assert_eq!(estimate_lte, Some(8.0));
+            }
+            _ => panic!("expected Issue List"),
+        }
+    }
+
+    #[test]
+    fn issue_list_with_parent() {
+        let cli = parse(&["lin", "issue", "list", "--parent", "APP-123"]);
+        match cli.command {
+            Commands::Issue(IssueCommand::List { parent, .. }) => {
+                assert_eq!(parent.as_deref(), Some("APP-123"));
+            }
+            _ => panic!("expected Issue List"),
+        }
+    }
+
+    #[test]
+    fn issue_list_with_no_parent() {
+        let cli = parse(&["lin", "issue", "list", "--no-parent"]);
+        match cli.command {
+            Commands::Issue(IssueCommand::List { no_parent, .. }) => {
+                assert!(no_parent);
+            }
+            _ => panic!("expected Issue List"),
+        }
+    }
+
+    #[test]
+    fn issue_list_with_has_children() {
+        let cli = parse(&["lin", "issue", "list", "--has-children"]);
+        match cli.command {
+            Commands::Issue(IssueCommand::List { has_children, .. }) => {
+                assert!(has_children);
+            }
+            _ => panic!("expected Issue List"),
+        }
+    }
+
+    #[test]
+    fn issue_list_with_subscriber() {
+        let cli = parse(&["lin", "issue", "list", "--subscriber", "me"]);
+        match cli.command {
+            Commands::Issue(IssueCommand::List { subscriber, .. }) => {
+                assert_eq!(subscriber.as_deref(), Some("me"));
+            }
+            _ => panic!("expected Issue List"),
+        }
+    }
+
+    #[test]
+    fn issue_list_with_title() {
+        let cli = parse(&["lin", "issue", "list", "--title", "authentication"]);
+        match cli.command {
+            Commands::Issue(IssueCommand::List { title, .. }) => {
+                assert_eq!(title.as_deref(), Some("authentication"));
+            }
+            _ => panic!("expected Issue List"),
+        }
+    }
+
+    #[test]
+    fn issue_list_combines_convenience_filters() {
+        let cli = parse(&[
+            "lin",
+            "issue",
+            "list",
+            "--team",
+            "eng",
+            "--no-parent",
+            "--has-children",
+            "--estimate-gte",
+            "5",
+            "--title",
+            "epic",
+        ]);
+        match cli.command {
+            Commands::Issue(IssueCommand::List {
+                team,
+                no_parent,
+                has_children,
+                estimate_gte,
+                title,
+                ..
+            }) => {
+                assert_eq!(team.as_deref(), Some("eng"));
+                assert!(no_parent);
+                assert!(has_children);
+                assert_eq!(estimate_gte, Some(5.0));
+                assert_eq!(title.as_deref(), Some("epic"));
             }
             _ => panic!("expected Issue List"),
         }
