@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `project view --content` flag to display the full project description/overview
+- `project edit --content` flag to set the long-form project description/overview
 
 ## [0.5.0] - 2026-03-24
 

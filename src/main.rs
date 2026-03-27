@@ -284,6 +284,7 @@ async fn run(cli: Cli) -> Result<()> {
                     id,
                     name,
                     description,
+                    content,
                     state,
                 } => {
                     commands::project::edit(
@@ -291,6 +292,7 @@ async fn run(cli: Cli) -> Result<()> {
                         &id,
                         name.as_deref(),
                         description.as_deref(),
+                        content.as_deref(),
                         state.as_deref(),
                     )
                     .await?;

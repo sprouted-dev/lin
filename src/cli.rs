@@ -449,9 +449,13 @@ pub enum ProjectCommand {
         #[arg(long)]
         name: Option<String>,
 
-        /// New description
+        /// New short summary
         #[arg(long)]
         description: Option<String>,
+
+        /// New long-form description/overview
+        #[arg(long)]
+        content: Option<String>,
 
         /// New state (e.g., planned, started, paused, completed, canceled)
         #[arg(long)]

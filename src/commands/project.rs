@@ -124,6 +124,7 @@ pub async fn edit(
     id: &str,
     name: Option<&str>,
     description: Option<&str>,
+    content: Option<&str>,
     state: Option<&str>,
 ) -> Result<()> {
     let id = resolve::resolve_project_identifier(client, id).await?;
@@ -133,6 +134,9 @@ pub async fn edit(
     }
     if let Some(d) = description {
         input["description"] = json!(d);
+    }
+    if let Some(c) = content {
+        input["content"] = json!(c);
     }
     if let Some(s) = state {
         input["state"] = json!(s);
