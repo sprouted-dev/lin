@@ -248,6 +248,7 @@ pub struct ProjectDetail {
     pub id: String,
     pub name: String,
     pub description: Option<String>,
+    pub content: Option<String>,
     pub state: Option<String>,
     pub lead: Option<User>,
     pub members: Option<Connection<ProjectMember>>,

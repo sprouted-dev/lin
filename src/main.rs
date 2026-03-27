@@ -269,8 +269,8 @@ async fn run(cli: Cli) -> Result<()> {
                 } => {
                     commands::project::list(&ctx.client, include_archived, limit).await?;
                 }
-                ProjectCommand::View { id } => {
-                    commands::project::view(&ctx.client, &id).await?;
+                ProjectCommand::View { id, content } => {
+                    commands::project::view(&ctx.client, &id, content).await?;
                 }
                 ProjectCommand::Create {
                     name,
