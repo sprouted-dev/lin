@@ -7,13 +7,19 @@ use crate::api::resolve;
 use crate::api::types::*;
 use crate::output;
 
-pub async fn list(client: &LinearClient, team: &str, limit: i32) -> Result<()> {
+pub async fn list(client: &LinearClient, team: &str, limit: i32, json: bool) -> Result<()> {
     let team_id = resolve::resolve_team_identifier(client, team).await?;
 
     let variables = json!({
         "first": limit,
         "filter": { "team": { "id": { "eq": team_id } } },
     });
+
+    if json {
+        let data = client.execute_raw(CYCLES_QUERY, Some(variables)).await?;
+        output::print_json(&data);
+        return Ok(());
+    }
 
     let data: CyclesData = client.execute(CYCLES_QUERY, Some(variables)).await?;
     let cycles = data.cycles.nodes;
@@ -43,7 +49,7 @@ pub async fn list(client: &LinearClient, team: &str, limit: i32) -> Result<()> {
     Ok(())
 }
 
-pub async fn active(client: &LinearClient, team: &str) -> Result<()> {
+pub async fn active(client: &LinearClient, team: &str, json: bool) -> Result<()> {
     let team_id = resolve::resolve_team_identifier(client, team).await?;
 
     let variables = json!({
@@ -53,6 +59,12 @@ pub async fn active(client: &LinearClient, team: &str) -> Result<()> {
             "isActive": { "eq": true }
         },
     });
+
+    if json {
+        let data = client.execute_raw(CYCLES_QUERY, Some(variables)).await?;
+        output::print_json(&data);
+        return Ok(());
+    }
 
     let data: CyclesData = client.execute(CYCLES_QUERY, Some(variables)).await?;
     let cycles = data.cycles.nodes;

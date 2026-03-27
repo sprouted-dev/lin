@@ -20,11 +20,7 @@ impl LinearClient {
         }
     }
 
-    pub async fn execute<T: DeserializeOwned>(
-        &self,
-        query: &str,
-        variables: Option<Value>,
-    ) -> Result<T, LinError> {
+    async fn send_query(&self, query: &str, variables: Option<Value>) -> Result<Value, LinError> {
         let body = json!({
             "query": query,
             "variables": variables.unwrap_or(json!({})),
@@ -46,7 +42,7 @@ impl LinearClient {
         }
 
         let text = response.text().await?;
-        let gql_response: GraphQLResponse<T> = serde_json::from_str(&text)
+        let gql_response: GraphQLResponse<Value> = serde_json::from_str(&text)
             .map_err(|e| LinError::ApiError(format!("Failed to decode response: {e}")))?;
 
         if let Some(errors) = gql_response.errors {
@@ -57,5 +53,23 @@ impl LinearClient {
         gql_response
             .data
             .ok_or_else(|| LinError::ApiError("No data in response".to_string()))
+    }
+
+    pub async fn execute<T: DeserializeOwned>(
+        &self,
+        query: &str,
+        variables: Option<Value>,
+    ) -> Result<T, LinError> {
+        let raw = self.send_query(query, variables).await?;
+        serde_json::from_value(raw)
+            .map_err(|e| LinError::ApiError(format!("Failed to decode response: {e}")))
+    }
+
+    pub async fn execute_raw(
+        &self,
+        query: &str,
+        variables: Option<Value>,
+    ) -> Result<Value, LinError> {
+        self.send_query(query, variables).await
     }
 }

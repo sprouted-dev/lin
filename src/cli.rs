@@ -7,6 +7,10 @@ pub struct Cli {
     #[arg(long, short, global = true)]
     pub workspace: Option<String>,
 
+    /// Output raw JSON from the Linear API (read commands only)
+    #[arg(long, global = true)]
+    pub json: bool,
+
     #[command(subcommand)]
     pub command: Commands,
 }
@@ -1087,5 +1091,27 @@ mod tests {
             }
             _ => panic!("expected Project View"),
         }
+    }
+
+    #[test]
+    fn global_json_flag() {
+        let cli = parse(&["lin", "--json", "project", "list"]);
+        assert!(cli.json);
+        match cli.command {
+            Commands::Project(ProjectCommand::List { .. }) => {}
+            _ => panic!("expected Project List"),
+        }
+    }
+
+    #[test]
+    fn json_flag_after_subcommand() {
+        let cli = parse(&["lin", "issue", "list", "--json"]);
+        assert!(cli.json);
+    }
+
+    #[test]
+    fn no_json_flag_by_default() {
+        let cli = parse(&["lin", "team", "list"]);
+        assert!(!cli.json);
     }
 }

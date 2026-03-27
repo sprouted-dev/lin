@@ -6,7 +6,7 @@ use crate::api::queries::*;
 use crate::api::types::*;
 use crate::output;
 
-pub async fn run(client: &LinearClient) -> Result<()> {
+pub async fn run(client: &LinearClient, json: bool) -> Result<()> {
     let filter = json!({
         "state": { "type": { "eq": "completed" } }
     });
@@ -15,6 +15,12 @@ pub async fn run(client: &LinearClient) -> Result<()> {
         "first": 20,
         "filter": filter,
     });
+
+    if json {
+        let data = client.execute_raw(ISSUES_QUERY, Some(variables)).await?;
+        output::print_json(&data);
+        return Ok(());
+    }
 
     let data: IssuesData = client.execute(ISSUES_QUERY, Some(variables)).await?;
 

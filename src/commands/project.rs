@@ -7,10 +7,21 @@ use crate::api::resolve;
 use crate::api::types::*;
 use crate::output;
 
-pub async fn list(client: &LinearClient, include_archived: bool, limit: i32) -> Result<()> {
+pub async fn list(
+    client: &LinearClient,
+    include_archived: bool,
+    limit: i32,
+    json: bool,
+) -> Result<()> {
     let mut variables = json!({ "first": limit });
     if include_archived {
         variables["includeArchived"] = json!(true);
+    }
+
+    if json {
+        let data = client.execute_raw(PROJECTS_QUERY, Some(variables)).await?;
+        output::print_json(&data);
+        return Ok(());
     }
 
     let data: ProjectsData = client.execute(PROJECTS_QUERY, Some(variables)).await?;
@@ -36,8 +47,17 @@ pub async fn list(client: &LinearClient, include_archived: bool, limit: i32) -> 
     Ok(())
 }
 
-pub async fn view(client: &LinearClient, id: &str, show_content: bool) -> Result<()> {
+pub async fn view(client: &LinearClient, id: &str, show_content: bool, json: bool) -> Result<()> {
     let resolved_id = resolve::resolve_project_identifier(client, id).await?;
+
+    if json {
+        let data = client
+            .execute_raw(PROJECT_QUERY, Some(json!({ "id": resolved_id })))
+            .await?;
+        output::print_json(&data);
+        return Ok(());
+    }
+
     let data: ProjectDetailData = client
         .execute(PROJECT_QUERY, Some(json!({ "id": resolved_id })))
         .await?;
@@ -162,8 +182,17 @@ pub async fn edit(
 
 // --- Project Updates ---
 
-pub async fn update_list(client: &LinearClient, project: &str) -> Result<()> {
+pub async fn update_list(client: &LinearClient, project: &str, json: bool) -> Result<()> {
     let project_id = resolve::resolve_project_identifier(client, project).await?;
+
+    if json {
+        let data = client
+            .execute_raw(PROJECT_UPDATES_QUERY, Some(json!({ "id": project_id })))
+            .await?;
+        output::print_json(&data);
+        return Ok(());
+    }
+
     let data: ProjectUpdatesData = client
         .execute(PROJECT_UPDATES_QUERY, Some(json!({ "id": project_id })))
         .await?;
@@ -191,9 +220,17 @@ pub async fn update_list(client: &LinearClient, project: &str) -> Result<()> {
     Ok(())
 }
 
-pub async fn update_show(client: &LinearClient, id: &str) -> Result<()> {
+pub async fn update_show(client: &LinearClient, id: &str, json: bool) -> Result<()> {
     use crate::api::queries::PROJECT_UPDATE_QUERY;
     use crate::api::types::ProjectUpdateData;
+
+    if json {
+        let data = client
+            .execute_raw(PROJECT_UPDATE_QUERY, Some(json!({ "id": id })))
+            .await?;
+        output::print_json(&data);
+        return Ok(());
+    }
 
     let data: ProjectUpdateData = client
         .execute(PROJECT_UPDATE_QUERY, Some(json!({ "id": id })))

@@ -7,7 +7,7 @@ use crate::api::resolve;
 use crate::api::types::*;
 use crate::output;
 
-pub async fn list(client: &LinearClient, team: Option<&str>) -> Result<()> {
+pub async fn list(client: &LinearClient, team: Option<&str>, json: bool) -> Result<()> {
     let variables = match team {
         Some(t) => {
             let tid = resolve::resolve_team_identifier(client, t).await?;
@@ -21,6 +21,12 @@ pub async fn list(client: &LinearClient, team: Option<&str>) -> Result<()> {
         }
         None => None,
     };
+
+    if json {
+        let data = client.execute_raw(LABELS_QUERY, variables).await?;
+        output::print_json(&data);
+        return Ok(());
+    }
 
     let data: LabelsData = client.execute(LABELS_QUERY, variables).await?;
 

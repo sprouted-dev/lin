@@ -36,7 +36,15 @@ pub struct ConvenienceFilters {
     pub title: Option<String>,
 }
 
-pub async fn view(client: &LinearClient, id: &str) -> Result<()> {
+pub async fn view(client: &LinearClient, id: &str, json: bool) -> Result<()> {
+    if json {
+        let data = client
+            .execute_raw(ISSUE_QUERY, Some(json!({ "id": id })))
+            .await?;
+        output::print_json(&data);
+        return Ok(());
+    }
+
     let data: IssueData = client
         .execute(ISSUE_QUERY, Some(json!({ "id": id })))
         .await?;
@@ -315,6 +323,7 @@ pub async fn edit(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn search(
     client: &LinearClient,
     query: &str,
@@ -323,6 +332,7 @@ pub async fn search(
     assignee: Option<&str>,
     status: Option<&str>,
     limit: i32,
+    json: bool,
 ) -> Result<()> {
     let mut filter = json!({});
     if let Some(pid) = project {
@@ -347,6 +357,14 @@ pub async fn search(
         "filter": filter,
     });
 
+    if json {
+        let data = client
+            .execute_raw(ISSUE_SEARCH_QUERY, Some(variables))
+            .await?;
+        output::print_json(&data);
+        return Ok(());
+    }
+
     let data: IssueSearchData = client.execute(ISSUE_SEARCH_QUERY, Some(variables)).await?;
     let issues = data.search_issues.nodes;
 
@@ -368,6 +386,7 @@ pub async fn list(
     date_filters: DateFilters,
     convenience_filters: ConvenienceFilters,
     limit: i32,
+    json: bool,
 ) -> Result<()> {
     let mut filter = json!({});
 
@@ -502,6 +521,12 @@ pub async fn list(
         "filter": final_filter,
     });
 
+    if json {
+        let data = client.execute_raw(ISSUES_QUERY, Some(variables)).await?;
+        output::print_json(&data);
+        return Ok(());
+    }
+
     let data: IssuesData = client.execute(ISSUES_QUERY, Some(variables)).await?;
     let issues = data.issues.nodes;
 
@@ -565,7 +590,7 @@ fn apply_estimate_filter(
     }
 }
 
-pub async fn me(client: &LinearClient, status: Option<&str>, limit: i32) -> Result<()> {
+pub async fn me(client: &LinearClient, status: Option<&str>, limit: i32, json: bool) -> Result<()> {
     let viewer: ViewerData = client.execute(VIEWER_QUERY, None).await?;
     let user_id = viewer.viewer.id;
 
@@ -580,6 +605,12 @@ pub async fn me(client: &LinearClient, status: Option<&str>, limit: i32) -> Resu
         "first": limit,
         "filter": filter,
     });
+
+    if json {
+        let data = client.execute_raw(ISSUES_QUERY, Some(variables)).await?;
+        output::print_json(&data);
+        return Ok(());
+    }
 
     let data: IssuesData = client.execute(ISSUES_QUERY, Some(variables)).await?;
     let issues = data.issues.nodes;
@@ -601,8 +632,18 @@ pub async fn state(
     id: &str,
     new_state_name: Option<&str>,
     list_flag: bool,
+    json: bool,
 ) -> Result<()> {
-    // First fetch the issue to get current state and team
+    // When just viewing state as JSON, return raw data without a typed fetch first
+    if json && !list_flag && new_state_name.is_none() {
+        let data = client
+            .execute_raw(ISSUE_QUERY, Some(json!({ "id": id })))
+            .await?;
+        output::print_json(&data);
+        return Ok(());
+    }
+
+    // Fetch the issue to get current state and team
     let issue_data: IssueData = client
         .execute(ISSUE_QUERY, Some(json!({ "id": id })))
         .await?;
@@ -614,6 +655,14 @@ pub async fn state(
             .team
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Issue has no team"))?;
+
+        if json {
+            let data = client
+                .execute_raw(TEAM_STATES_QUERY, Some(json!({ "id": team.id })))
+                .await?;
+            output::print_json(&data);
+            return Ok(());
+        }
 
         let team_data: TeamData = client
             .execute(TEAM_STATES_QUERY, Some(json!({ "id": team.id })))
@@ -776,7 +825,15 @@ pub async fn attachment_add(
     Ok(())
 }
 
-pub async fn attachments(client: &LinearClient, id: &str) -> Result<()> {
+pub async fn attachments(client: &LinearClient, id: &str, json: bool) -> Result<()> {
+    if json {
+        let data = client
+            .execute_raw(ISSUE_ATTACHMENTS_QUERY, Some(json!({ "id": id })))
+            .await?;
+        output::print_json(&data);
+        return Ok(());
+    }
+
     let data: IssueAttachmentsData = client
         .execute(ISSUE_ATTACHMENTS_QUERY, Some(json!({ "id": id })))
         .await?;
