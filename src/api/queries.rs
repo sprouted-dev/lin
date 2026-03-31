@@ -176,6 +176,7 @@ pub const PROJECT_QUERY: &str = r#"
             id
             name
             description
+            content
             state
             lead { id name }
             members { nodes { name } }

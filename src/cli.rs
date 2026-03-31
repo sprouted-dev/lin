@@ -422,6 +422,10 @@ pub enum ProjectCommand {
     View {
         /// Project name or UUID
         id: String,
+
+        /// Show full project description
+        #[arg(long)]
+        content: bool,
     },
     /// Create a new project
     Create {
@@ -445,9 +449,13 @@ pub enum ProjectCommand {
         #[arg(long)]
         name: Option<String>,
 
-        /// New description
+        /// New short summary
         #[arg(long)]
         description: Option<String>,
+
+        /// New long-form description/overview
+        #[arg(long)]
+        content: Option<String>,
 
         /// New state (e.g., planned, started, paused, completed, canceled)
         #[arg(long)]
@@ -1054,6 +1062,30 @@ mod tests {
                 assert_eq!(title.as_deref(), Some("epic"));
             }
             _ => panic!("expected Issue List"),
+        }
+    }
+
+    #[test]
+    fn project_view_without_content_flag() {
+        let cli = parse(&["lin", "project", "view", "March 2026"]);
+        match cli.command {
+            Commands::Project(ProjectCommand::View { id, content }) => {
+                assert_eq!(id, "March 2026");
+                assert!(!content);
+            }
+            _ => panic!("expected Project View"),
+        }
+    }
+
+    #[test]
+    fn project_view_with_content_flag() {
+        let cli = parse(&["lin", "project", "view", "March 2026", "--content"]);
+        match cli.command {
+            Commands::Project(ProjectCommand::View { id, content }) => {
+                assert_eq!(id, "March 2026");
+                assert!(content);
+            }
+            _ => panic!("expected Project View"),
         }
     }
 }

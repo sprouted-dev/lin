@@ -269,8 +269,8 @@ async fn run(cli: Cli) -> Result<()> {
                 } => {
                     commands::project::list(&ctx.client, include_archived, limit).await?;
                 }
-                ProjectCommand::View { id } => {
-                    commands::project::view(&ctx.client, &id).await?;
+                ProjectCommand::View { id, content } => {
+                    commands::project::view(&ctx.client, &id, content).await?;
                 }
                 ProjectCommand::Create {
                     name,
@@ -284,6 +284,7 @@ async fn run(cli: Cli) -> Result<()> {
                     id,
                     name,
                     description,
+                    content,
                     state,
                 } => {
                     commands::project::edit(
@@ -291,6 +292,7 @@ async fn run(cli: Cli) -> Result<()> {
                         &id,
                         name.as_deref(),
                         description.as_deref(),
+                        content.as_deref(),
                         state.as_deref(),
                     )
                     .await?;

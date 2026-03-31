@@ -36,7 +36,7 @@ pub async fn list(client: &LinearClient, include_archived: bool, limit: i32) -> 
     Ok(())
 }
 
-pub async fn view(client: &LinearClient, id: &str) -> Result<()> {
+pub async fn view(client: &LinearClient, id: &str, show_content: bool) -> Result<()> {
     let resolved_id = resolve::resolve_project_identifier(client, id).await?;
     let data: ProjectDetailData = client
         .execute(PROJECT_QUERY, Some(json!({ "id": resolved_id })))
@@ -67,9 +67,15 @@ pub async fn view(client: &LinearClient, id: &str) -> Result<()> {
     if let Some(ref desc) = p.description
         && !desc.is_empty()
     {
+        output::print_field("Summary", desc);
+    }
+    if show_content
+        && let Some(ref content) = p.content
+        && !content.is_empty()
+    {
         println!();
         output::print_header("Description");
-        println!("  {desc}");
+        println!("  {content}");
     }
     if let Some(ref url) = p.url {
         output::print_field("URL", url);
@@ -118,6 +124,7 @@ pub async fn edit(
     id: &str,
     name: Option<&str>,
     description: Option<&str>,
+    content: Option<&str>,
     state: Option<&str>,
 ) -> Result<()> {
     let id = resolve::resolve_project_identifier(client, id).await?;
@@ -127,6 +134,9 @@ pub async fn edit(
     }
     if let Some(d) = description {
         input["description"] = json!(d);
+    }
+    if let Some(c) = content {
+        input["content"] = json!(c);
     }
     if let Some(s) = state {
         input["state"] = json!(s);
