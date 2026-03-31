@@ -92,6 +92,15 @@ pub struct Issue {
     pub labels: Option<Connection<Label>>,
     pub children: Option<Connection<ChildIssue>>,
     pub parent: Option<ParentIssue>,
+    pub cycle: Option<CycleRef>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CycleRef {
+    pub id: String,
+    pub number: Option<i32>,
+    pub name: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -182,6 +191,8 @@ pub struct IssueCreateInput {
     pub label_ids: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parent_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cycle_id: Option<String>,
 }
 
 // --- Comment ---
@@ -482,6 +493,8 @@ pub struct IssueUpdateInput {
     pub label_ids: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parent_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cycle_id: Option<String>,
 }
 
 // --- Cycles ---

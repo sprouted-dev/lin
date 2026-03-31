@@ -65,6 +65,15 @@ pub async fn view(client: &LinearClient, id: &str, json: bool) -> Result<()> {
     if let Some(ref project) = issue.project {
         output::print_field("Project", &project.name);
     }
+    if let Some(ref cycle) = issue.cycle {
+        let display = match (&cycle.name, cycle.number) {
+            (Some(name), Some(num)) => format!("{} (#{})", name, num),
+            (Some(name), None) => name.clone(),
+            (None, Some(num)) => format!("#{}", num),
+            (None, None) => "—".to_string(),
+        };
+        output::print_field("Cycle", &display);
+    }
     if let Some(priority) = issue.priority {
         let label = match priority as i32 {
             0 => "None",
@@ -138,13 +147,14 @@ pub async fn create(
     label_ids: Option<&[String]>,
     labels: Option<&[String]>,
     parent: Option<&str>,
+    cycle: Option<&str>,
     attachment_path: Option<&str>,
 ) -> Result<()> {
     let team_id = resolve::resolve_team_identifier(client, team).await?;
 
     let mut input = IssueCreateInput {
         title: title.to_string(),
-        team_id,
+        team_id: team_id.clone(),
         ..Default::default()
     };
     input.description = description.map(|s| s.to_string());
@@ -172,6 +182,12 @@ pub async fn create(
     if let Some(pid) = parent {
         let resolved = resolve::resolve_issue_identifier(client, pid).await?;
         input.parent_id = Some(resolved);
+    }
+
+    // Resolve cycle
+    if let Some(cyc) = cycle {
+        let resolved = resolve::resolve_cycle_identifier(client, &input.team_id, cyc).await?;
+        input.cycle_id = Some(resolved);
     }
 
     let data: IssueCreateData = client
@@ -217,6 +233,7 @@ pub async fn edit(
     labels: Option<Vec<String>>,
     remove_labels: Option<Vec<String>>,
     parent: Option<String>,
+    cycle: Option<String>,
     attachment_path: Option<String>,
 ) -> Result<()> {
     // Resolve label names
@@ -283,6 +300,20 @@ pub async fn edit(
         None => None,
     };
 
+    // Resolve cycle (fetch issue's team if needed)
+    let resolved_cycle = if let Some(ref cyc) = cycle {
+        let issue_data: IssueData = client
+            .execute(ISSUE_QUERY, Some(json!({ "id": id })))
+            .await?;
+        let team = issue_data
+            .issue
+            .team
+            .ok_or_else(|| anyhow::anyhow!("Issue has no team"))?;
+        Some(resolve::resolve_cycle_identifier(client, &team.id, cyc).await?)
+    } else {
+        None
+    };
+
     let input = IssueUpdateInput {
         title,
         description,
@@ -292,6 +323,7 @@ pub async fn edit(
         project_id: resolved_project,
         label_ids: final_label_ids,
         parent_id: resolved_parent,
+        cycle_id: resolved_cycle,
     };
 
     let data: IssueUpdateData = client

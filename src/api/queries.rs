@@ -28,6 +28,7 @@ pub const ISSUE_QUERY: &str = r#"
             labels { nodes { id name color } }
             children { nodes { identifier title } }
             parent { identifier title }
+            cycle { id number name }
         }
     }
 "#;

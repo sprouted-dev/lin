@@ -113,6 +113,10 @@ pub enum IssueCommand {
         #[arg(long)]
         parent: Option<String>,
 
+        /// Cycle (name, number, or "current" for active cycle)
+        #[arg(long)]
+        cycle: Option<String>,
+
         /// Attach a file to the created issue
         #[arg(long)]
         attachment: Option<String>,
@@ -161,6 +165,10 @@ pub enum IssueCommand {
         /// Parent issue ID or identifier (e.g., APP-123)
         #[arg(long)]
         parent: Option<String>,
+
+        /// Cycle (name, number, or "current" for active cycle)
+        #[arg(long)]
+        cycle: Option<String>,
 
         /// Attach a file to the issue
         #[arg(long)]
