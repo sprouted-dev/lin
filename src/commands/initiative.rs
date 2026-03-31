@@ -6,8 +6,16 @@ use crate::api::queries::*;
 use crate::api::types::*;
 use crate::output;
 
-pub async fn list(client: &LinearClient, limit: i32) -> Result<()> {
+pub async fn list(client: &LinearClient, limit: i32, json: bool) -> Result<()> {
     let variables = json!({ "first": limit });
+
+    if json {
+        let data = client
+            .execute_raw(INITIATIVES_QUERY, Some(variables))
+            .await?;
+        output::print_json(&data);
+        return Ok(());
+    }
 
     let data: InitiativesData = client.execute(INITIATIVES_QUERY, Some(variables)).await?;
     let initiatives = data.initiatives.nodes;
@@ -30,7 +38,15 @@ pub async fn list(client: &LinearClient, limit: i32) -> Result<()> {
     Ok(())
 }
 
-pub async fn view(client: &LinearClient, id: &str) -> Result<()> {
+pub async fn view(client: &LinearClient, id: &str, json: bool) -> Result<()> {
+    if json {
+        let data = client
+            .execute_raw(INITIATIVE_QUERY, Some(json!({ "id": id })))
+            .await?;
+        output::print_json(&data);
+        return Ok(());
+    }
+
     let data: InitiativeDetailData = client
         .execute(INITIATIVE_QUERY, Some(json!({ "id": id })))
         .await?;

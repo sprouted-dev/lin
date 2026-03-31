@@ -1,4 +1,12 @@
 use colored::Colorize;
+use serde_json::Value;
+
+pub fn print_json(value: &Value) {
+    println!(
+        "{}",
+        serde_json::to_string_pretty(value).expect("Value always serializes")
+    );
+}
 
 pub fn print_header(text: &str) {
     println!("{}", text.bold().cyan());

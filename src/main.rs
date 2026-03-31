@@ -18,15 +18,17 @@ struct CommandContext {
     client: LinearClient,
     #[allow(dead_code)]
     workspace: String,
+    json: bool,
 }
 
-fn ensure_auth(cli_workspace: Option<&str>) -> Result<CommandContext> {
+fn ensure_auth(cli_workspace: Option<&str>, json: bool) -> Result<CommandContext> {
     let ws = workspace::resolve_workspace(cli_workspace);
     let token = auth::get_token(&ws)?;
     let client = LinearClient::new(&token);
     Ok(CommandContext {
         client,
         workspace: ws,
+        json,
     })
 }
 
@@ -42,6 +44,7 @@ async fn main() {
 
 async fn run(cli: Cli) -> Result<()> {
     let ws_flag = cli.workspace.as_deref();
+    let json = cli.json;
 
     match cli.command {
         Commands::Login { token, name } => {
@@ -62,10 +65,10 @@ async fn run(cli: Cli) -> Result<()> {
         },
 
         Commands::Issue(cmd) => {
-            let ctx = ensure_auth(ws_flag)?;
+            let ctx = ensure_auth(ws_flag, json)?;
             match cmd {
                 IssueCommand::View { id } => {
-                    commands::issue::view(&ctx.client, &id).await?;
+                    commands::issue::view(&ctx.client, &id, ctx.json).await?;
                 }
                 IssueCommand::Create {
                     title,
@@ -145,6 +148,7 @@ async fn run(cli: Cli) -> Result<()> {
                         assignee.as_deref(),
                         status.as_deref(),
                         limit,
+                        ctx.json,
                     )
                     .await?;
                 }
@@ -210,18 +214,20 @@ async fn run(cli: Cli) -> Result<()> {
                         date_filters,
                         convenience_filters,
                         limit,
+                        ctx.json,
                     )
                     .await?;
                 }
                 IssueCommand::Me { status, limit } => {
-                    commands::issue::me(&ctx.client, status.as_deref(), limit).await?;
+                    commands::issue::me(&ctx.client, status.as_deref(), limit, ctx.json).await?;
                 }
                 IssueCommand::State { id, name, list } => {
-                    commands::issue::state(&ctx.client, &id, name.as_deref(), list).await?;
+                    commands::issue::state(&ctx.client, &id, name.as_deref(), list, ctx.json)
+                        .await?;
                 }
                 IssueCommand::Attachments(sub) => match sub {
                     AttachmentCommand::List { id } => {
-                        commands::issue::attachments(&ctx.client, &id).await?;
+                        commands::issue::attachments(&ctx.client, &id, ctx.json).await?;
                     }
                     AttachmentCommand::Add { id, file, title } => {
                         commands::issue::attachment_add(&ctx.client, &id, &file, title.as_deref())
@@ -239,10 +245,10 @@ async fn run(cli: Cli) -> Result<()> {
         }
 
         Commands::Comment(cmd) => {
-            let ctx = ensure_auth(ws_flag)?;
+            let ctx = ensure_auth(ws_flag, json)?;
             match cmd {
                 CommentCommand::View { id, show_ids } => {
-                    commands::comment::view(&ctx.client, &id, show_ids).await?;
+                    commands::comment::view(&ctx.client, &id, show_ids, ctx.json).await?;
                 }
                 CommentCommand::Add {
                     id,
@@ -262,16 +268,16 @@ async fn run(cli: Cli) -> Result<()> {
         }
 
         Commands::Project(cmd) => {
-            let ctx = ensure_auth(ws_flag)?;
+            let ctx = ensure_auth(ws_flag, json)?;
             match cmd {
                 ProjectCommand::List {
                     include_archived,
                     limit,
                 } => {
-                    commands::project::list(&ctx.client, include_archived, limit).await?;
+                    commands::project::list(&ctx.client, include_archived, limit, ctx.json).await?;
                 }
                 ProjectCommand::View { id, content } => {
-                    commands::project::view(&ctx.client, &id, content).await?;
+                    commands::project::view(&ctx.client, &id, content, ctx.json).await?;
                 }
                 ProjectCommand::Create {
                     name,
@@ -300,7 +306,7 @@ async fn run(cli: Cli) -> Result<()> {
                 }
                 ProjectCommand::Update(sub) => match sub {
                     ProjectUpdateCommand::List { project } => {
-                        commands::project::update_list(&ctx.client, &project).await?;
+                        commands::project::update_list(&ctx.client, &project, ctx.json).await?;
                     }
                     ProjectUpdateCommand::Add {
                         project,
@@ -320,7 +326,7 @@ async fn run(cli: Cli) -> Result<()> {
                             .await?;
                     }
                     ProjectUpdateCommand::Show { id } => {
-                        commands::project::update_show(&ctx.client, &id).await?;
+                        commands::project::update_show(&ctx.client, &id, ctx.json).await?;
                     }
                     ProjectUpdateCommand::Delete { id } => {
                         commands::project::update_delete(&ctx.client, &id).await?;
@@ -330,28 +336,28 @@ async fn run(cli: Cli) -> Result<()> {
         }
 
         Commands::Team(cmd) => {
-            let ctx = ensure_auth(ws_flag)?;
+            let ctx = ensure_auth(ws_flag, json)?;
             match cmd {
                 TeamCommand::List => {
-                    commands::team::list(&ctx.client).await?;
+                    commands::team::list(&ctx.client, ctx.json).await?;
                 }
             }
         }
 
         Commands::User(cmd) => {
-            let ctx = ensure_auth(ws_flag)?;
+            let ctx = ensure_auth(ws_flag, json)?;
             match cmd {
                 UserCommand::List => {
-                    commands::user::list(&ctx.client).await?;
+                    commands::user::list(&ctx.client, ctx.json).await?;
                 }
             }
         }
 
         Commands::Label(cmd) => {
-            let ctx = ensure_auth(ws_flag)?;
+            let ctx = ensure_auth(ws_flag, json)?;
             match cmd {
                 LabelCommand::List { team } => {
-                    commands::label::list(&ctx.client, team.as_deref()).await?;
+                    commands::label::list(&ctx.client, team.as_deref(), ctx.json).await?;
                 }
                 LabelCommand::Create {
                     name,
@@ -374,32 +380,32 @@ async fn run(cli: Cli) -> Result<()> {
         }
 
         Commands::Cycle(cmd) => {
-            let ctx = ensure_auth(ws_flag)?;
+            let ctx = ensure_auth(ws_flag, json)?;
             match cmd {
                 CycleCommand::List { team, limit } => {
-                    commands::cycle::list(&ctx.client, &team, limit).await?;
+                    commands::cycle::list(&ctx.client, &team, limit, ctx.json).await?;
                 }
                 CycleCommand::Active { team } => {
-                    commands::cycle::active(&ctx.client, &team).await?;
+                    commands::cycle::active(&ctx.client, &team, ctx.json).await?;
                 }
             }
         }
 
         Commands::Initiative(cmd) => {
-            let ctx = ensure_auth(ws_flag)?;
+            let ctx = ensure_auth(ws_flag, json)?;
             match cmd {
                 InitiativeCommand::List { limit } => {
-                    commands::initiative::list(&ctx.client, limit).await?;
+                    commands::initiative::list(&ctx.client, limit, ctx.json).await?;
                 }
                 InitiativeCommand::View { id } => {
-                    commands::initiative::view(&ctx.client, &id).await?;
+                    commands::initiative::view(&ctx.client, &id, ctx.json).await?;
                 }
             }
         }
 
         Commands::Changelog => {
-            let ctx = ensure_auth(ws_flag)?;
-            commands::changelog::run(&ctx.client).await?;
+            let ctx = ensure_auth(ws_flag, json)?;
+            commands::changelog::run(&ctx.client, ctx.json).await?;
         }
     }
 

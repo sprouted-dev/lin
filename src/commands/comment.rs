@@ -7,7 +7,15 @@ use crate::api::types::*;
 use crate::api::upload;
 use crate::output;
 
-pub async fn view(client: &LinearClient, issue_id: &str, show_ids: bool) -> Result<()> {
+pub async fn view(client: &LinearClient, issue_id: &str, show_ids: bool, json: bool) -> Result<()> {
+    if json {
+        let data = client
+            .execute_raw(COMMENTS_QUERY, Some(json!({ "id": issue_id })))
+            .await?;
+        output::print_json(&data);
+        return Ok(());
+    }
+
     let data: IssueCommentsData = client
         .execute(COMMENTS_QUERY, Some(json!({ "id": issue_id })))
         .await?;

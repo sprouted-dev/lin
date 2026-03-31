@@ -5,7 +5,13 @@ use crate::api::queries::*;
 use crate::api::types::*;
 use crate::output;
 
-pub async fn list(client: &LinearClient) -> Result<()> {
+pub async fn list(client: &LinearClient, json: bool) -> Result<()> {
+    if json {
+        let data = client.execute_raw(USERS_QUERY, None).await?;
+        output::print_json(&data);
+        return Ok(());
+    }
+
     let data: UsersData = client.execute(USERS_QUERY, None).await?;
 
     let users = data.users.nodes;
