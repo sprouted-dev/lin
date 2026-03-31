@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `project view --content` flag to display the full project description/overview
 - `project edit --content` flag to set the long-form project description/overview
 
+### Fixed
+- `login` command now respects the global `-w` workspace flag instead of always storing tokens under the `--name` default ("default")
+
 ## [0.5.0] - 2026-03-24
 
 ### Added
