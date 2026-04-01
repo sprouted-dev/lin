@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `cycle create` command with `--starts`, `--ends`/`--duration`, `--name`, `--description` flags
+- `cycle show` command with progress bar, status badge, and issues table
+- `--cycle` flag on `issue create` and `issue edit` for assigning issues to cycles
 - Global `--json` flag for raw JSON output on all read commands (e.g., `lin --json project list`, `lin issue view ENG-1 --json`)
 - `project view --content` flag to display the full project description/overview
 - `project edit --content` flag to set the long-form project description/overview
