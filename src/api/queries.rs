@@ -380,6 +380,22 @@ pub const ISSUE_ATTACHMENTS_QUERY: &str = r#"
     }
 "#;
 
+pub const ISSUE_ATTACHMENTS_DOWNLOAD_QUERY: &str = r#"
+    query IssueAttachmentsDownload($id: String!) {
+        issue(id: $id) {
+            description
+            attachments {
+                nodes {
+                    id
+                    title
+                    url
+                    createdAt
+                }
+            }
+        }
+    }
+"#;
+
 // --- Cycles ---
 
 pub const CYCLES_QUERY: &str = r#"

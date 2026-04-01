@@ -472,6 +472,17 @@ pub struct IssueWithAttachments {
     pub attachments: Connection<Attachment>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct IssueDownloadData {
+    pub issue: IssueForDownload,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct IssueForDownload {
+    pub description: Option<String>,
+    pub attachments: Connection<Attachment>,
+}
+
 // --- Input types ---
 
 #[derive(Debug, Serialize, Default)]

@@ -87,6 +87,10 @@ impl LinearClient {
         })
     }
 
+    pub fn token(&self) -> &str {
+        &self.token
+    }
+
     pub async fn execute_raw(
         &self,
         query: &str,

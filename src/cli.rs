@@ -372,6 +372,17 @@ pub enum AttachmentCommand {
         #[arg(long)]
         title: Option<String>,
     },
+    /// Download attachments from an issue
+    Download {
+        /// Issue identifier (e.g., ENG-123) or UUID
+        id: String,
+        /// Output directory (defaults to current directory)
+        #[arg(long, short, default_value = ".")]
+        output: String,
+        /// Download only the attachment matching this ID prefix
+        #[arg(long)]
+        attachment_id: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -787,6 +798,72 @@ mod tests {
                 assert_eq!(body, "top level comment");
             }
             _ => panic!("expected Comment Add"),
+        }
+    }
+
+    #[test]
+    fn issue_attachments_download_parses() {
+        let cli = parse(&["lin", "issue", "attachments", "download", "ENG-10"]);
+        match cli.command {
+            Commands::Issue(IssueCommand::Attachments(AttachmentCommand::Download {
+                id,
+                output,
+                attachment_id,
+            })) => {
+                assert_eq!(id, "ENG-10");
+                assert_eq!(output, ".");
+                assert!(attachment_id.is_none());
+            }
+            _ => panic!("expected Issue Attachments Download"),
+        }
+    }
+
+    #[test]
+    fn issue_attachments_download_with_options() {
+        let cli = parse(&[
+            "lin",
+            "issue",
+            "attachments",
+            "download",
+            "PLO-358",
+            "--output",
+            "/tmp/downloads",
+            "--attachment-id",
+            "f17bacc6",
+        ]);
+        match cli.command {
+            Commands::Issue(IssueCommand::Attachments(AttachmentCommand::Download {
+                id,
+                output,
+                attachment_id,
+            })) => {
+                assert_eq!(id, "PLO-358");
+                assert_eq!(output, "/tmp/downloads");
+                assert_eq!(attachment_id.as_deref(), Some("f17bacc6"));
+            }
+            _ => panic!("expected Issue Attachments Download"),
+        }
+    }
+
+    #[test]
+    fn issue_attachments_download_short_output() {
+        let cli = parse(&[
+            "lin",
+            "issue",
+            "attachments",
+            "download",
+            "ENG-1",
+            "-o",
+            "/tmp",
+        ]);
+        match cli.command {
+            Commands::Issue(IssueCommand::Attachments(AttachmentCommand::Download {
+                output,
+                ..
+            })) => {
+                assert_eq!(output, "/tmp");
+            }
+            _ => panic!("expected Issue Attachments Download"),
         }
     }
 

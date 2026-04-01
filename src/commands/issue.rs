@@ -902,6 +902,192 @@ pub async fn attachments(client: &LinearClient, id: &str, json: bool) -> Result<
     Ok(())
 }
 
+pub async fn attachment_download(
+    client: &LinearClient,
+    id: &str,
+    output_dir: &str,
+    filter_id: Option<&str>,
+) -> Result<()> {
+    let data: IssueDownloadData = client
+        .execute(ISSUE_ATTACHMENTS_DOWNLOAD_QUERY, Some(json!({ "id": id })))
+        .await?;
+
+    let mut download_urls: Vec<String> = Vec::new();
+
+    // Collect formal attachment URLs (only uploads.linear.app)
+    for att in &data.issue.attachments.nodes {
+        let Some(url) = &att.url else { continue };
+
+        if let Some(fid) = filter_id
+            && !att.id.starts_with(fid)
+        {
+            continue;
+        }
+
+        if !url.contains("uploads.linear.app") {
+            output::print_field(
+                "Skipping",
+                &format!(
+                    "{} (not a Linear upload)",
+                    att.title.as_deref().unwrap_or(url)
+                ),
+            );
+            continue;
+        }
+
+        if !download_urls.contains(url) {
+            download_urls.push(url.clone());
+        }
+    }
+
+    // Collect inline uploads from description (skip when filtering by ID)
+    if filter_id.is_none()
+        && let Some(desc) = &data.issue.description
+    {
+        for url in extract_inline_upload_urls(desc) {
+            if !download_urls.contains(&url) {
+                download_urls.push(url);
+            }
+        }
+    }
+
+    if download_urls.is_empty() {
+        println!("  No attachments to download.");
+        return Ok(());
+    }
+
+    let output_path = std::path::Path::new(output_dir);
+    std::fs::create_dir_all(output_path)?;
+
+    let http_client = reqwest::Client::new();
+    let token = client.token();
+    let mut success_count = 0;
+    let mut used_filenames: Vec<String> = Vec::new();
+
+    for url in &download_urls {
+        match download_file(&http_client, url, token, output_path, &mut used_filenames).await {
+            Ok((filename, bytes)) => {
+                success_count += 1;
+                output::print_success(&format!("{} ({})", filename, format_byte_size(bytes)));
+            }
+            Err(e) => {
+                output::print_error(&format!("Failed to download '{}': {}", url, e));
+            }
+        }
+    }
+
+    if download_urls.len() > 1 {
+        output::print_success(&format!(
+            "Downloaded {}/{} files to {}",
+            success_count,
+            download_urls.len(),
+            output_dir
+        ));
+    }
+    Ok(())
+}
+
+async fn download_file(
+    client: &reqwest::Client,
+    url: &str,
+    token: &str,
+    output_dir: &std::path::Path,
+    used_filenames: &mut Vec<String>,
+) -> Result<(String, usize)> {
+    let mut request = client.get(url);
+    if url.contains("uploads.linear.app") {
+        request = request.header("Authorization", token);
+    }
+    let response = request.send().await?;
+    if !response.status().is_success() {
+        bail!("HTTP {}", response.status());
+    }
+
+    let raw_name =
+        content_disposition_filename(&response).unwrap_or_else(|| "download".to_string());
+
+    // Sanitize: strip path components to prevent traversal
+    let safe_name = std::path::Path::new(&raw_name)
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "download".to_string());
+
+    // Deduplicate: append suffix if filename already used
+    let filename = deduplicate_filename(&safe_name, used_filenames);
+    used_filenames.push(filename.clone());
+
+    let bytes = response.bytes().await?;
+    let len = bytes.len();
+    std::fs::write(output_dir.join(&filename), &bytes)?;
+    Ok((filename, len))
+}
+
+fn deduplicate_filename(name: &str, used: &[String]) -> String {
+    if !used.contains(&name.to_string()) {
+        return name.to_string();
+    }
+    let stem = std::path::Path::new(name)
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| name.to_string());
+    let ext = std::path::Path::new(name)
+        .extension()
+        .map(|e| format!(".{}", e.to_string_lossy()));
+    let mut i = 1;
+    loop {
+        let candidate = format!("{}-{}{}", stem, i, ext.as_deref().unwrap_or(""));
+        if !used.contains(&candidate) {
+            return candidate;
+        }
+        i += 1;
+    }
+}
+
+fn content_disposition_filename(response: &reqwest::Response) -> Option<String> {
+    let header = response.headers().get("content-disposition")?;
+    let value = header.to_str().ok()?;
+    // Parse: attachment; filename="name.ext" or filename=name.ext; ...
+    let after = value.split("filename=").nth(1)?;
+    let name = after
+        .split(';')
+        .next()?
+        .trim()
+        .trim_matches('"')
+        .trim_matches('\'');
+    if name.is_empty() {
+        return None;
+    }
+    Some(name.to_string())
+}
+
+fn extract_inline_upload_urls(text: &str) -> Vec<String> {
+    let prefix = "https://uploads.linear.app/";
+    let mut results = Vec::new();
+    let mut search_from = 0;
+
+    while let Some(start) = text[search_from..].find(prefix) {
+        let abs_start = search_from + start;
+        let rest = &text[abs_start..];
+        let end = rest
+            .find(|c: char| c.is_whitespace() || c == ')' || c == ']' || c == '>' || c == '"')
+            .unwrap_or(rest.len());
+        let url = text[abs_start..abs_start + end].to_string();
+        results.push(url);
+        search_from = abs_start + end;
+    }
+    results
+}
+
+fn format_byte_size(bytes: usize) -> String {
+    if bytes < 1024 {
+        format!("{} B", bytes)
+    } else if bytes < 1024 * 1024 {
+        format!("{:.1} KB", bytes as f64 / 1024.0)
+    } else {
+        format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
+    }
+}
+
 fn print_issues_table(issues: &[Issue]) {
     output::print_header(&format!("Issues ({})", issues.len()));
 
@@ -930,5 +1116,74 @@ fn truncate(s: &str, max: usize) -> String {
         s.to_string()
     } else {
         format!("{}…", &s[..max - 1])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extract_inline_urls_from_markdown() {
+        let desc = r#"Some text
+![image001.png](https://uploads.linear.app/org/abc/def)
+[report.docx](https://uploads.linear.app/org/123/456)
+No link here."#;
+        let urls = extract_inline_upload_urls(desc);
+        assert_eq!(urls.len(), 2);
+        assert_eq!(urls[0], "https://uploads.linear.app/org/abc/def");
+        assert_eq!(urls[1], "https://uploads.linear.app/org/123/456");
+    }
+
+    #[test]
+    fn extract_inline_urls_bare() {
+        let desc = "Check https://uploads.linear.app/org/a/b for details";
+        let urls = extract_inline_upload_urls(desc);
+        assert_eq!(urls, vec!["https://uploads.linear.app/org/a/b"]);
+    }
+
+    #[test]
+    fn extract_inline_urls_none() {
+        let urls = extract_inline_upload_urls("No uploads here");
+        assert!(urls.is_empty());
+    }
+
+    #[test]
+    fn extract_inline_urls_deduplicates_not_here() {
+        // Dedup happens in the caller, not in extract — same URL should appear twice
+        let desc = "[a](https://uploads.linear.app/x) [b](https://uploads.linear.app/x)";
+        let urls = extract_inline_upload_urls(desc);
+        assert_eq!(urls.len(), 2);
+    }
+
+    #[test]
+    fn deduplicate_no_conflict() {
+        let used = vec!["other.txt".to_string()];
+        assert_eq!(deduplicate_filename("file.docx", &used), "file.docx");
+    }
+
+    #[test]
+    fn deduplicate_one_conflict() {
+        let used = vec!["file.docx".to_string()];
+        assert_eq!(deduplicate_filename("file.docx", &used), "file-1.docx");
+    }
+
+    #[test]
+    fn deduplicate_multiple_conflicts() {
+        let used = vec!["file.docx".to_string(), "file-1.docx".to_string()];
+        assert_eq!(deduplicate_filename("file.docx", &used), "file-2.docx");
+    }
+
+    #[test]
+    fn deduplicate_no_extension() {
+        let used = vec!["README".to_string()];
+        assert_eq!(deduplicate_filename("README", &used), "README-1");
+    }
+
+    #[test]
+    fn format_bytes() {
+        assert_eq!(format_byte_size(500), "500 B");
+        assert_eq!(format_byte_size(1024), "1.0 KB");
+        assert_eq!(format_byte_size(1024 * 1024 * 2), "2.0 MB");
     }
 }

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `issue attachments download` subcommand to download files from issues, including inline uploads from descriptions (#26)
 - `-v`/`--verbose` flag to show response body in error messages for debugging API/schema issues
 
 ### Changed
