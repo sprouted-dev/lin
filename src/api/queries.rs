@@ -395,6 +395,51 @@ pub const CYCLES_QUERY: &str = r#"
     }
 "#;
 
+pub const CYCLE_DETAIL_QUERY: &str = r#"
+    query Cycle($id: String!) {
+        cycle(id: $id) {
+            id
+            number
+            name
+            description
+            startsAt
+            endsAt
+            completedAt
+            isActive
+            isFuture
+            isPast
+            progress
+            issues {
+                nodes {
+                    id
+                    identifier
+                    title
+                    priority
+                    url
+                    state { id name type }
+                    assignee { id name displayName }
+                    team { id name key }
+                }
+            }
+        }
+    }
+"#;
+
+pub const CYCLE_CREATE_MUTATION: &str = r#"
+    mutation CycleCreate($input: CycleCreateInput!) {
+        cycleCreate(input: $input) {
+            success
+            cycle {
+                id
+                number
+                name
+                startsAt
+                endsAt
+            }
+        }
+    }
+"#;
+
 // --- Initiatives ---
 
 pub const INITIATIVES_QUERY: &str = r#"

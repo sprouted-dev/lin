@@ -1,10 +1,11 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
 use serde_json::json;
 
 use crate::api::client::LinearClient;
 use crate::api::queries::*;
 use crate::api::resolve;
 use crate::api::types::*;
+use crate::date;
 use crate::output;
 
 pub async fn list(client: &LinearClient, team: &str, limit: i32, json: bool) -> Result<()> {
@@ -90,4 +91,166 @@ pub async fn active(client: &LinearClient, team: &str, json: bool) -> Result<()>
     }
 
     Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn create(
+    client: &LinearClient,
+    team: &str,
+    starts: &str,
+    ends: Option<&str>,
+    duration: Option<&str>,
+    name: Option<&str>,
+    description: Option<&str>,
+    json_flag: bool,
+) -> Result<()> {
+    let team_id = resolve::resolve_team_identifier(client, team).await?;
+
+    let starts_at = date::parse_date(starts)?;
+
+    let ends_at = if let Some(end) = ends {
+        date::parse_date(end)?
+    } else if let Some(dur) = duration {
+        date::add_duration_to_date(starts, dur)?
+    } else {
+        bail!("Either --ends or --duration is required")
+    };
+
+    let input = CycleCreateInput {
+        team_id,
+        starts_at,
+        ends_at,
+        name: name.map(|s| s.to_string()),
+        description: description.map(|s| s.to_string()),
+    };
+
+    if json_flag {
+        let data = client
+            .execute_raw(CYCLE_CREATE_MUTATION, Some(json!({ "input": input })))
+            .await?;
+        output::print_json(&data);
+        return Ok(());
+    }
+
+    let data: CycleCreateData = client
+        .execute(CYCLE_CREATE_MUTATION, Some(json!({ "input": input })))
+        .await?;
+
+    if !data.cycle_create.success {
+        bail!("Failed to create cycle");
+    }
+
+    if let Some(cycle) = data.cycle_create.cycle {
+        let label = cycle.name.as_deref().unwrap_or("(unnamed)");
+        let num = cycle.number.map(|n| format!(" #{}", n)).unwrap_or_default();
+        output::print_success(&format!("Created cycle {}{}", label, num));
+        if let Some(ref start) = cycle.starts_at {
+            output::print_field("Start", &output::format_date(start));
+        }
+        if let Some(ref end) = cycle.ends_at {
+            output::print_field("End", &output::format_date(end));
+        }
+    }
+
+    Ok(())
+}
+
+pub async fn show(client: &LinearClient, id: &str, team: &str, json_flag: bool) -> Result<()> {
+    let team_id = resolve::resolve_team_identifier(client, team).await?;
+    let cycle_id = resolve::resolve_cycle_identifier(client, &team_id, id).await?;
+
+    let variables = json!({ "id": cycle_id });
+
+    if json_flag {
+        let data = client
+            .execute_raw(CYCLE_DETAIL_QUERY, Some(variables))
+            .await?;
+        output::print_json(&data);
+        return Ok(());
+    }
+
+    let data: CycleDetailData = client.execute(CYCLE_DETAIL_QUERY, Some(variables)).await?;
+    let cycle = data.cycle;
+
+    // Header
+    let title = cycle.name.as_deref().unwrap_or("Unnamed Cycle");
+    let num = cycle.number.map(|n| format!(" #{}", n)).unwrap_or_default();
+    output::print_header(&format!("{}{}", title, num));
+
+    // Status
+    let status = if cycle.is_active == Some(true) {
+        "Active"
+    } else if cycle.is_future == Some(true) {
+        "Upcoming"
+    } else if cycle.is_past == Some(true) {
+        "Past"
+    } else {
+        "Unknown"
+    };
+    output::print_field("Status", status);
+
+    // Dates
+    if let Some(ref start) = cycle.starts_at {
+        output::print_field("Start", &output::format_date(start));
+    }
+    if let Some(ref end) = cycle.ends_at {
+        output::print_field("End", &output::format_date(end));
+    }
+
+    // Progress
+    if let Some(progress) = cycle.progress {
+        let pct = (progress * 100.0) as u32;
+        let bar = format_progress_bar(progress, 20);
+        output::print_field("Progress", &format!("{} {}%", bar, pct));
+    }
+
+    // Description
+    if let Some(ref desc) = cycle.description
+        && !desc.is_empty()
+    {
+        println!();
+        output::print_header("Description");
+        println!("  {}", desc);
+    }
+
+    // Issues table
+    if let Some(ref issues) = cycle.issues {
+        println!();
+        output::print_header(&format!("Issues ({})", issues.nodes.len()));
+
+        let headers = &["ID", "Title", "Status", "Assignee"];
+        let rows: Vec<Vec<String>> = issues
+            .nodes
+            .iter()
+            .map(|i| {
+                vec![
+                    i.identifier.clone(),
+                    truncate(&i.title, 50),
+                    i.state.as_ref().map(|s| s.name.clone()).unwrap_or_default(),
+                    i.assignee
+                        .as_ref()
+                        .map(|a| a.name.clone())
+                        .unwrap_or_default(),
+                ]
+            })
+            .collect();
+
+        output::print_table(headers, &rows);
+    }
+
+    Ok(())
+}
+
+fn format_progress_bar(progress: f64, width: usize) -> String {
+    let filled = (progress * width as f64).round() as usize;
+    let empty = width.saturating_sub(filled);
+    format!("[{}{}]", "█".repeat(filled), "░".repeat(empty))
+}
+
+fn truncate(s: &str, max: usize) -> String {
+    if s.len() <= max {
+        s.to_string()
+    } else {
+        format!("{}…", &s[..max - 1])
+    }
 }

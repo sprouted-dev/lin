@@ -113,6 +113,10 @@ pub enum IssueCommand {
         #[arg(long)]
         parent: Option<String>,
 
+        /// Cycle (name, number, or "current"; requires --team)
+        #[arg(long)]
+        cycle: Option<String>,
+
         /// Attach a file to the created issue
         #[arg(long)]
         attachment: Option<String>,
@@ -161,6 +165,10 @@ pub enum IssueCommand {
         /// Parent issue ID or identifier (e.g., APP-123)
         #[arg(long)]
         parent: Option<String>,
+
+        /// Cycle (name, number, or "current"; requires --team)
+        #[arg(long)]
+        cycle: Option<String>,
 
         /// Attach a file to the issue
         #[arg(long)]
@@ -569,6 +577,41 @@ pub enum CycleCommand {
     },
     /// Show the currently active cycle for a team
     Active {
+        /// Team name, key, or UUID
+        #[arg(long)]
+        team: String,
+    },
+    /// Create a new cycle
+    Create {
+        /// Team name, key, or UUID
+        #[arg(long)]
+        team: String,
+
+        /// Start date (ISO 8601, e.g. 2026-04-07)
+        #[arg(long)]
+        starts: String,
+
+        /// End date (ISO 8601, e.g. 2026-04-14)
+        #[arg(long, conflicts_with = "duration")]
+        ends: Option<String>,
+
+        /// Duration from start (e.g. 1w, 2w, 10d)
+        #[arg(long, conflicts_with = "ends")]
+        duration: Option<String>,
+
+        /// Cycle name
+        #[arg(long)]
+        name: Option<String>,
+
+        /// Cycle description
+        #[arg(long)]
+        description: Option<String>,
+    },
+    /// View cycle details including issues
+    Show {
+        /// Cycle name, number, or "current"
+        id: String,
+
         /// Team name, key, or UUID
         #[arg(long)]
         team: String,
@@ -1113,5 +1156,100 @@ mod tests {
     fn no_json_flag_by_default() {
         let cli = parse(&["lin", "team", "list"]);
         assert!(!cli.json);
+    }
+
+    #[test]
+    fn cycle_create_with_ends() {
+        let cli = parse(&[
+            "lin",
+            "cycle",
+            "create",
+            "--team",
+            "eng",
+            "--starts",
+            "2026-04-07",
+            "--ends",
+            "2026-04-14",
+        ]);
+        match cli.command {
+            Commands::Cycle(CycleCommand::Create {
+                team,
+                starts,
+                ends,
+                duration,
+                ..
+            }) => {
+                assert_eq!(team, "eng");
+                assert_eq!(starts, "2026-04-07");
+                assert_eq!(ends.as_deref(), Some("2026-04-14"));
+                assert!(duration.is_none());
+            }
+            _ => panic!("expected Cycle Create"),
+        }
+    }
+
+    #[test]
+    fn cycle_create_with_duration() {
+        let cli = parse(&[
+            "lin",
+            "cycle",
+            "create",
+            "--team",
+            "eng",
+            "--starts",
+            "2026-04-07",
+            "--duration",
+            "1w",
+        ]);
+        match cli.command {
+            Commands::Cycle(CycleCommand::Create { duration, ends, .. }) => {
+                assert_eq!(duration.as_deref(), Some("1w"));
+                assert!(ends.is_none());
+            }
+            _ => panic!("expected Cycle Create"),
+        }
+    }
+
+    #[test]
+    fn cycle_show_parses() {
+        let cli = parse(&["lin", "cycle", "show", "current", "--team", "eng"]);
+        match cli.command {
+            Commands::Cycle(CycleCommand::Show { id, team }) => {
+                assert_eq!(id, "current");
+                assert_eq!(team, "eng");
+            }
+            _ => panic!("expected Cycle Show"),
+        }
+    }
+
+    #[test]
+    fn issue_create_with_cycle() {
+        let cli = parse(&[
+            "lin",
+            "issue",
+            "create",
+            "Test issue",
+            "--team",
+            "eng",
+            "--cycle",
+            "current",
+        ]);
+        match cli.command {
+            Commands::Issue(IssueCommand::Create { cycle, .. }) => {
+                assert_eq!(cycle.as_deref(), Some("current"));
+            }
+            _ => panic!("expected Issue Create"),
+        }
+    }
+
+    #[test]
+    fn issue_edit_with_cycle() {
+        let cli = parse(&["lin", "issue", "edit", "ENG-5", "--cycle", "42"]);
+        match cli.command {
+            Commands::Issue(IssueCommand::Edit { cycle, .. }) => {
+                assert_eq!(cycle.as_deref(), Some("42"));
+            }
+            _ => panic!("expected Issue Edit"),
+        }
     }
 }
