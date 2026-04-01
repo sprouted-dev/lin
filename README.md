@@ -72,7 +72,10 @@ lin issue edit ENG-123 --cycle 42
 lin issue state ENG-123
 lin issue state ENG-123 "Done"
 lin issue state ENG-123 --list
-lin issue attachments ENG-123
+lin issue attachments list ENG-123
+lin issue attachments add ENG-123 screenshot.png
+lin issue attachments download ENG-123 -o /tmp/
+lin issue attachments download ENG-123 --attachment-id f17b -o /tmp/
 ```
 
 ### Comments
