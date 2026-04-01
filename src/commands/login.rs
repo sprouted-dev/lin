@@ -7,13 +7,13 @@ use crate::auth;
 use crate::config::Config;
 use crate::output;
 
-pub async fn run(token: &str, workspace_name: &str) -> Result<()> {
+pub async fn run(token: &str, workspace_name: &str, use_keyring: bool) -> Result<()> {
     // Validate the token by querying the viewer
     let client = LinearClient::new(token);
     let viewer: ViewerData = client.execute(VIEWER_QUERY, None).await?;
 
     // Store the token
-    auth::store_token(workspace_name, token)?;
+    auth::store_token(workspace_name, token, use_keyring)?;
 
     // Update default workspace in config if not set
     let mut config = Config::load()?;
@@ -27,7 +27,10 @@ pub async fn run(token: &str, workspace_name: &str) -> Result<()> {
         viewer.viewer.name,
         viewer.viewer.email.as_deref().unwrap_or("no email")
     ));
-    output::print_success(&format!("Token stored for workspace '{workspace_name}'"));
+    let store_label = if use_keyring { "keychain" } else { "file" };
+    output::print_success(&format!(
+        "Token stored for workspace '{workspace_name}' ({store_label})"
+    ));
 
     Ok(())
 }
