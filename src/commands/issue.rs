@@ -998,11 +998,11 @@ async fn download_file(
     output_dir: &std::path::Path,
     used_filenames: &mut Vec<String>,
 ) -> Result<(String, usize)> {
-    let response = client
-        .get(url)
-        .header("Authorization", token)
-        .send()
-        .await?;
+    let mut request = client.get(url);
+    if url.contains("uploads.linear.app") {
+        request = request.header("Authorization", token);
+    }
+    let response = request.send().await?;
     if !response.status().is_success() {
         bail!("HTTP {}", response.status());
     }
@@ -1066,7 +1066,7 @@ fn filename_from_url(url: &str) -> Option<String> {
     if segment.is_empty() {
         return None;
     }
-    Some(percent_decode(segment))
+    Some(segment.to_string())
 }
 
 fn extract_inline_upload_urls(text: &str) -> Vec<String> {
@@ -1085,31 +1085,6 @@ fn extract_inline_upload_urls(text: &str) -> Vec<String> {
         search_from = abs_start + end;
     }
     results
-}
-
-fn percent_decode(s: &str) -> String {
-    let mut bytes = Vec::with_capacity(s.len());
-    let mut iter = s.as_bytes().iter();
-    while let Some(&b) = iter.next() {
-        if b == b'%' {
-            if let (Some(&h1), Some(&h2)) = (iter.next(), iter.next()) {
-                if let Ok(decoded) =
-                    u8::from_str_radix(std::str::from_utf8(&[h1, h2]).unwrap_or(""), 16)
-                {
-                    bytes.push(decoded);
-                    continue;
-                }
-                bytes.push(b'%');
-                bytes.push(h1);
-                bytes.push(h2);
-            } else {
-                bytes.push(b'%');
-            }
-        } else {
-            bytes.push(b);
-        }
-    }
-    String::from_utf8(bytes).unwrap_or_else(|_| s.to_string())
 }
 
 fn format_byte_size(bytes: usize) -> String {
