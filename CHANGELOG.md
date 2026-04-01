@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Token storage now defaults to file-based (`~/.linear-cli/tokens.json`) instead of OS keychain, eliminating repeated password prompts on macOS. Use `lin login --keyring` to opt into keychain storage. Existing keychain tokens are read as a fallback.
+- Updated README with v0.6.0 features: cycle create/show, --cycle flag, --json, -v/--verbose, LINEAR_API_TOKEN env var, --keyring, project --content
 
 ## [0.6.0] - 2026-04-01
 
