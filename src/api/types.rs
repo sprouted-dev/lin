@@ -92,6 +92,15 @@ pub struct Issue {
     pub labels: Option<Connection<Label>>,
     pub children: Option<Connection<ChildIssue>>,
     pub parent: Option<ParentIssue>,
+    pub cycle: Option<CycleRef>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CycleRef {
+    pub id: String,
+    pub number: Option<i32>,
+    pub name: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -182,6 +191,8 @@ pub struct IssueCreateInput {
     pub label_ids: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parent_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cycle_id: Option<String>,
 }
 
 // --- Comment ---
@@ -482,6 +493,8 @@ pub struct IssueUpdateInput {
     pub label_ids: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parent_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cycle_id: Option<String>,
 }
 
 // --- Cycles ---
@@ -492,13 +505,49 @@ pub struct Cycle {
     pub id: String,
     pub number: Option<i32>,
     pub name: Option<String>,
+    pub description: Option<String>,
     pub starts_at: Option<String>,
     pub ends_at: Option<String>,
+    pub completed_at: Option<String>,
+    pub is_active: Option<bool>,
+    pub is_future: Option<bool>,
+    pub is_past: Option<bool>,
+    pub progress: Option<f64>,
+    pub issues: Option<Connection<Issue>>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct CyclesData {
     pub cycles: Connection<Cycle>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CycleDetailData {
+    pub cycle: Cycle,
+}
+
+#[derive(Debug, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct CycleCreateInput {
+    pub team_id: String,
+    pub starts_at: String,
+    pub ends_at: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CyclePayload {
+    pub success: bool,
+    pub cycle: Option<Cycle>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CycleCreateData {
+    pub cycle_create: CyclePayload,
 }
 
 // --- Initiatives ---

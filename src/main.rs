@@ -80,6 +80,7 @@ async fn run(cli: Cli) -> Result<()> {
                     label_ids,
                     labels,
                     parent,
+                    cycle,
                     attachment,
                 } => {
                     commands::issue::create(
@@ -93,6 +94,7 @@ async fn run(cli: Cli) -> Result<()> {
                         label_ids.as_deref(),
                         labels.as_deref(),
                         parent.as_deref(),
+                        cycle.as_deref(),
                         attachment.as_deref(),
                     )
                     .await?;
@@ -109,6 +111,7 @@ async fn run(cli: Cli) -> Result<()> {
                     labels,
                     remove_labels,
                     parent,
+                    cycle,
                     attachment,
                     comment,
                 } => {
@@ -125,6 +128,7 @@ async fn run(cli: Cli) -> Result<()> {
                         labels,
                         remove_labels,
                         parent,
+                        cycle,
                         attachment,
                     )
                     .await?;
@@ -387,6 +391,29 @@ async fn run(cli: Cli) -> Result<()> {
                 }
                 CycleCommand::Active { team } => {
                     commands::cycle::active(&ctx.client, &team, ctx.json).await?;
+                }
+                CycleCommand::Create {
+                    team,
+                    starts,
+                    ends,
+                    duration,
+                    name,
+                    description,
+                } => {
+                    commands::cycle::create(
+                        &ctx.client,
+                        &team,
+                        &starts,
+                        ends.as_deref(),
+                        duration.as_deref(),
+                        name.as_deref(),
+                        description.as_deref(),
+                        ctx.json,
+                    )
+                    .await?;
+                }
+                CycleCommand::Show { id, team } => {
+                    commands::cycle::show(&ctx.client, &id, &team, ctx.json).await?;
                 }
             }
         }

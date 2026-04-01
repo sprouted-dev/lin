@@ -69,6 +69,20 @@ pub fn parse_date(input: &str) -> Result<String> {
     )
 }
 
+/// Adds a relative duration (e.g., "1w", "10d") to an ISO 8601 date string.
+pub fn add_duration_to_date(date_str: &str, duration_str: &str) -> Result<String> {
+    let duration = parse_relative(duration_str).ok_or_else(|| {
+        anyhow::anyhow!(
+            "Invalid duration: '{}'. Expected format like 1w, 2w, 10d",
+            duration_str
+        )
+    })?;
+    let start = parse_date(date_str)?;
+    let start_dt = OffsetDateTime::parse(&start, &Rfc3339)?;
+    let end = start_dt + duration;
+    Ok(end.format(&Rfc3339)?)
+}
+
 /// Parses relative time shorthand like "3d", "1w", "2h" into a Duration.
 fn parse_relative(input: &str) -> Option<Duration> {
     let input = input.trim();
@@ -153,5 +167,22 @@ mod tests {
     #[test]
     fn negative_relative_fails() {
         assert!(parse_date("-3d").is_err());
+    }
+
+    #[test]
+    fn add_duration_one_week() {
+        let result = add_duration_to_date("2026-04-07", "1w").unwrap();
+        assert!(result.starts_with("2026-04-14"));
+    }
+
+    #[test]
+    fn add_duration_ten_days() {
+        let result = add_duration_to_date("2026-04-01", "10d").unwrap();
+        assert!(result.starts_with("2026-04-11"));
+    }
+
+    #[test]
+    fn add_duration_invalid() {
+        assert!(add_duration_to_date("2026-04-01", "abc").is_err());
     }
 }

@@ -28,6 +28,7 @@ pub const ISSUE_QUERY: &str = r#"
             labels { nodes { id name color } }
             children { nodes { identifier title } }
             parent { identifier title }
+            cycle { id number name }
         }
     }
 "#;
@@ -385,6 +386,51 @@ pub const CYCLES_QUERY: &str = r#"
     query Cycles($first: Int, $filter: CycleFilter) {
         cycles(first: $first, filter: $filter) {
             nodes {
+                id
+                number
+                name
+                startsAt
+                endsAt
+            }
+        }
+    }
+"#;
+
+pub const CYCLE_DETAIL_QUERY: &str = r#"
+    query Cycle($id: String!) {
+        cycle(id: $id) {
+            id
+            number
+            name
+            description
+            startsAt
+            endsAt
+            completedAt
+            isActive
+            isFuture
+            isPast
+            progress
+            issues {
+                nodes {
+                    id
+                    identifier
+                    title
+                    priority
+                    url
+                    state { id name type }
+                    assignee { id name displayName }
+                    team { id name key }
+                }
+            }
+        }
+    }
+"#;
+
+pub const CYCLE_CREATE_MUTATION: &str = r#"
+    mutation CycleCreate($input: CycleCreateInput!) {
+        cycleCreate(input: $input) {
+            success
+            cycle {
                 id
                 number
                 name

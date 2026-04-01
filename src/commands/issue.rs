@@ -65,6 +65,15 @@ pub async fn view(client: &LinearClient, id: &str, json: bool) -> Result<()> {
     if let Some(ref project) = issue.project {
         output::print_field("Project", &project.name);
     }
+    if let Some(ref cycle) = issue.cycle {
+        let display = match (&cycle.name, cycle.number) {
+            (Some(name), Some(num)) => format!("{} (#{})", name, num),
+            (Some(name), None) => name.clone(),
+            (None, Some(num)) => format!("#{}", num),
+            (None, None) => "—".to_string(),
+        };
+        output::print_field("Cycle", &display);
+    }
     if let Some(priority) = issue.priority {
         let label = match priority as i32 {
             0 => "None",
@@ -138,13 +147,14 @@ pub async fn create(
     label_ids: Option<&[String]>,
     labels: Option<&[String]>,
     parent: Option<&str>,
+    cycle: Option<&str>,
     attachment_path: Option<&str>,
 ) -> Result<()> {
     let team_id = resolve::resolve_team_identifier(client, team).await?;
 
     let mut input = IssueCreateInput {
         title: title.to_string(),
-        team_id,
+        team_id: team_id.clone(),
         ..Default::default()
     };
     input.description = description.map(|s| s.to_string());
@@ -172,6 +182,11 @@ pub async fn create(
     if let Some(pid) = parent {
         let resolved = resolve::resolve_issue_identifier(client, pid).await?;
         input.parent_id = Some(resolved);
+    }
+
+    // Resolve cycle
+    if let Some(cyc) = cycle {
+        input.cycle_id = Some(resolve::resolve_cycle_identifier(client, &team_id, cyc).await?);
     }
 
     let data: IssueCreateData = client
@@ -217,20 +232,28 @@ pub async fn edit(
     labels: Option<Vec<String>>,
     remove_labels: Option<Vec<String>>,
     parent: Option<String>,
+    cycle: Option<String>,
     attachment_path: Option<String>,
 ) -> Result<()> {
-    // Resolve label names
+    // Resolve label names — fetch issue if labels or cycle need it
     let mut final_label_ids = label_ids;
+    let needs_issue_fetch = labels.is_some() || remove_labels.is_some() || cycle.is_some();
 
-    if labels.is_some() || remove_labels.is_some() {
-        // Need to fetch current labels to merge
+    let fetched_issue = if needs_issue_fetch {
         let issue_data: IssueData = client
             .execute(ISSUE_QUERY, Some(json!({ "id": id })))
             .await?;
-        let mut current_ids: Vec<String> = issue_data
-            .issue
+        Some(issue_data.issue)
+    } else {
+        None
+    };
+
+    if labels.is_some() || remove_labels.is_some() {
+        let issue = fetched_issue.as_ref().unwrap();
+        let mut current_ids: Vec<String> = issue
             .labels
-            .map(|l| l.nodes.into_iter().map(|n| n.id).collect())
+            .as_ref()
+            .map(|l| l.nodes.iter().map(|n| n.id.clone()).collect())
             .unwrap_or_default();
 
         // Add new labels by name
@@ -260,6 +283,18 @@ pub async fn edit(
 
         final_label_ids = Some(current_ids);
     }
+
+    // Resolve cycle — get team from fetched issue
+    let resolved_cycle = if let Some(ref cyc) = cycle {
+        let issue = fetched_issue.as_ref().unwrap();
+        let team = issue
+            .team
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Issue has no team; cannot resolve cycle"))?;
+        Some(resolve::resolve_cycle_identifier(client, &team.id, cyc).await?)
+    } else {
+        None
+    };
 
     // Resolve parent if it's an identifier
     let resolved_parent = if let Some(ref pid) = parent {
@@ -292,6 +327,7 @@ pub async fn edit(
         project_id: resolved_project,
         label_ids: final_label_ids,
         parent_id: resolved_parent,
+        cycle_id: resolved_cycle,
     };
 
     let data: IssueUpdateData = client
