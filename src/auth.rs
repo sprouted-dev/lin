@@ -30,11 +30,15 @@ fn save_tokens(tokens: &HashMap<String, String>) -> Result<(), LinError> {
     let path = tokens_path()?;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
+        // Ensure directory is owner-only (700)
+        std::fs::set_permissions(parent, std::fs::Permissions::from_mode(0o700))?;
     }
     let contents = serde_json::to_string_pretty(tokens)?;
-    std::fs::write(&path, &contents)?;
-    // Set file permissions to owner-only (600)
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
+    // Atomic write: write to temp file then rename
+    let tmp_path = path.with_extension("tmp");
+    std::fs::write(&tmp_path, &contents)?;
+    std::fs::set_permissions(&tmp_path, std::fs::Permissions::from_mode(0o600))?;
+    std::fs::rename(&tmp_path, &path)?;
     Ok(())
 }
 
@@ -45,7 +49,7 @@ fn store_token_file(workspace: &str, token: &str) -> Result<(), LinError> {
 }
 
 fn get_token_file(workspace: &str) -> Option<String> {
-    load_tokens().ok()?.remove(workspace)
+    load_tokens().ok()?.get(workspace).cloned()
 }
 
 fn store_token_keyring(workspace: &str, token: &str) -> Result<(), LinError> {
@@ -71,7 +75,13 @@ pub fn store_token(workspace: &str, token: &str, use_keyring: bool) -> Result<()
 }
 
 pub fn get_token(workspace: &str) -> Result<String, LinError> {
-    // Check file-based tokens first, then fall back to keychain
+    // Check env var first (supports `LINEAR_API_TOKEN=$(sp secret get ...) lin ...`)
+    if let Ok(token) = std::env::var("LINEAR_API_TOKEN")
+        && !token.is_empty()
+    {
+        return Ok(token);
+    }
+    // Check file-based tokens, then fall back to keychain
     if let Some(token) = get_token_file(workspace) {
         return Ok(token);
     }
