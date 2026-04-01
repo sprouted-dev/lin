@@ -1003,9 +1003,8 @@ async fn download_file(
         bail!("HTTP {}", response.status());
     }
 
-    let raw_name = content_disposition_filename(&response)
-        .or_else(|| filename_from_url(url))
-        .unwrap_or_else(|| "download".to_string());
+    let raw_name =
+        content_disposition_filename(&response).unwrap_or_else(|| "download".to_string());
 
     // Sanitize: strip path components to prevent traversal
     let safe_name = std::path::Path::new(&raw_name)
@@ -1061,15 +1060,6 @@ fn content_disposition_filename(response: &reqwest::Response) -> Option<String> 
     Some(name.to_string())
 }
 
-fn filename_from_url(url: &str) -> Option<String> {
-    let path = url.split('?').next()?;
-    let segment = path.rsplit('/').next()?;
-    if segment.is_empty() {
-        return None;
-    }
-    Some(segment.to_string())
-}
-
 fn extract_inline_upload_urls(text: &str) -> Vec<String> {
     let prefix = "https://uploads.linear.app/";
     let mut results = Vec::new();
@@ -1090,7 +1080,7 @@ fn extract_inline_upload_urls(text: &str) -> Vec<String> {
 
 fn format_byte_size(bytes: usize) -> String {
     if bytes < 1024 {
-        format!("{}", bytes)
+        format!("{} B", bytes)
     } else if bytes < 1024 * 1024 {
         format!("{:.1} KB", bytes as f64 / 1024.0)
     } else {
@@ -1126,5 +1116,74 @@ fn truncate(s: &str, max: usize) -> String {
         s.to_string()
     } else {
         format!("{}…", &s[..max - 1])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extract_inline_urls_from_markdown() {
+        let desc = r#"Some text
+![image001.png](https://uploads.linear.app/org/abc/def)
+[report.docx](https://uploads.linear.app/org/123/456)
+No link here."#;
+        let urls = extract_inline_upload_urls(desc);
+        assert_eq!(urls.len(), 2);
+        assert_eq!(urls[0], "https://uploads.linear.app/org/abc/def");
+        assert_eq!(urls[1], "https://uploads.linear.app/org/123/456");
+    }
+
+    #[test]
+    fn extract_inline_urls_bare() {
+        let desc = "Check https://uploads.linear.app/org/a/b for details";
+        let urls = extract_inline_upload_urls(desc);
+        assert_eq!(urls, vec!["https://uploads.linear.app/org/a/b"]);
+    }
+
+    #[test]
+    fn extract_inline_urls_none() {
+        let urls = extract_inline_upload_urls("No uploads here");
+        assert!(urls.is_empty());
+    }
+
+    #[test]
+    fn extract_inline_urls_deduplicates_not_here() {
+        // Dedup happens in the caller, not in extract — same URL should appear twice
+        let desc = "[a](https://uploads.linear.app/x) [b](https://uploads.linear.app/x)";
+        let urls = extract_inline_upload_urls(desc);
+        assert_eq!(urls.len(), 2);
+    }
+
+    #[test]
+    fn deduplicate_no_conflict() {
+        let used = vec!["other.txt".to_string()];
+        assert_eq!(deduplicate_filename("file.docx", &used), "file.docx");
+    }
+
+    #[test]
+    fn deduplicate_one_conflict() {
+        let used = vec!["file.docx".to_string()];
+        assert_eq!(deduplicate_filename("file.docx", &used), "file-1.docx");
+    }
+
+    #[test]
+    fn deduplicate_multiple_conflicts() {
+        let used = vec!["file.docx".to_string(), "file-1.docx".to_string()];
+        assert_eq!(deduplicate_filename("file.docx", &used), "file-2.docx");
+    }
+
+    #[test]
+    fn deduplicate_no_extension() {
+        let used = vec!["README".to_string()];
+        assert_eq!(deduplicate_filename("README", &used), "README-1");
+    }
+
+    #[test]
+    fn format_bytes() {
+        assert_eq!(format_byte_size(500), "500 B");
+        assert_eq!(format_byte_size(1024), "1.0 KB");
+        assert_eq!(format_byte_size(1024 * 1024 * 2), "2.0 MB");
     }
 }
