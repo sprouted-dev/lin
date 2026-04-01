@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `-v`/`--verbose` flag to show response body in error messages for debugging API/schema issues
+- `LINEAR_API_TOKEN` env var support for token injection (e.g., `LINEAR_API_TOKEN=$(sp secret get ...) lin ...`)
+
 ### Changed
 - Token storage now defaults to file-based (`~/.linear-cli/tokens.json`) instead of OS keychain, eliminating repeated password prompts on macOS. Use `lin login --keyring` to opt into keychain storage. Existing keychain tokens are read as a fallback.
 

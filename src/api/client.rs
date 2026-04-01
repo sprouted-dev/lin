@@ -10,6 +10,7 @@ const LINEAR_API_URL: &str = "https://api.linear.app/graphql";
 pub struct LinearClient {
     client: Client,
     token: String,
+    verbose: bool,
 }
 
 impl LinearClient {
@@ -17,7 +18,13 @@ impl LinearClient {
         Self {
             client: Client::new(),
             token: token.to_string(),
+            verbose: false,
         }
+    }
+
+    pub fn with_verbose(mut self, verbose: bool) -> Self {
+        self.verbose = verbose;
+        self
     }
 
     async fn send_query(&self, query: &str, variables: Option<Value>) -> Result<Value, LinError> {
@@ -42,8 +49,13 @@ impl LinearClient {
         }
 
         let text = response.text().await?;
-        let gql_response: GraphQLResponse<Value> = serde_json::from_str(&text)
-            .map_err(|e| LinError::ApiError(format!("Failed to decode response: {e}")))?;
+        let gql_response: GraphQLResponse<Value> = serde_json::from_str(&text).map_err(|e| {
+            if self.verbose {
+                LinError::ApiError(format!("Failed to decode response: {e}\n\nBody:\n{text}"))
+            } else {
+                LinError::ApiError(format!("Failed to decode response: {e}"))
+            }
+        })?;
 
         if let Some(errors) = gql_response.errors {
             let messages: Vec<String> = errors.into_iter().map(|e| e.message).collect();
@@ -61,8 +73,18 @@ impl LinearClient {
         variables: Option<Value>,
     ) -> Result<T, LinError> {
         let raw = self.send_query(query, variables).await?;
-        serde_json::from_value(raw)
-            .map_err(|e| LinError::ApiError(format!("Failed to decode response: {e}")))
+        let raw_str = if self.verbose {
+            Some(raw.to_string())
+        } else {
+            None
+        };
+        serde_json::from_value(raw).map_err(|e| {
+            if let Some(body) = raw_str {
+                LinError::ApiError(format!("Failed to decode response: {e}\n\nBody:\n{body}"))
+            } else {
+                LinError::ApiError(format!("Failed to decode response: {e}"))
+            }
+        })
     }
 
     pub async fn execute_raw(
