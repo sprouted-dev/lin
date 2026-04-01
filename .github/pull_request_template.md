@@ -13,3 +13,4 @@
 - [ ] `cargo test` passes
 - [ ] `cargo clippy --all-targets --all-features -- -D warnings` passes
 - [ ] Manually tested with `lin ...`
+- [ ] README updated (if user-facing changes)
