@@ -909,10 +909,7 @@ pub async fn attachment_download(
     filter_id: Option<&str>,
 ) -> Result<()> {
     let data: IssueDownloadData = client
-        .execute(
-            ISSUE_ATTACHMENTS_DOWNLOAD_QUERY,
-            Some(json!({ "id": id })),
-        )
+        .execute(ISSUE_ATTACHMENTS_DOWNLOAD_QUERY, Some(json!({ "id": id })))
         .await?;
 
     let mut download_urls: Vec<String> = Vec::new();
@@ -921,16 +918,19 @@ pub async fn attachment_download(
     for att in &data.issue.attachments.nodes {
         let Some(url) = &att.url else { continue };
 
-        if let Some(fid) = filter_id {
-            if !att.id.starts_with(fid) {
-                continue;
-            }
+        if let Some(fid) = filter_id
+            && !att.id.starts_with(fid)
+        {
+            continue;
         }
 
         if !url.contains("uploads.linear.app") {
             output::print_field(
                 "Skipping",
-                &format!("{} (not a Linear upload)", att.title.as_deref().unwrap_or(url)),
+                &format!(
+                    "{} (not a Linear upload)",
+                    att.title.as_deref().unwrap_or(url)
+                ),
             );
             continue;
         }
@@ -941,12 +941,12 @@ pub async fn attachment_download(
     }
 
     // Collect inline uploads from description (skip when filtering by ID)
-    if filter_id.is_none() {
-        if let Some(desc) = &data.issue.description {
-            for url in extract_inline_upload_urls(desc) {
-                if !download_urls.contains(&url) {
-                    download_urls.push(url);
-                }
+    if filter_id.is_none()
+        && let Some(desc) = &data.issue.description
+    {
+        for url in extract_inline_upload_urls(desc) {
+            if !download_urls.contains(&url) {
+                download_urls.push(url);
             }
         }
     }
@@ -968,11 +968,7 @@ pub async fn attachment_download(
         match download_file(&http_client, url, token, output_path, &mut used_filenames).await {
             Ok((filename, bytes)) => {
                 success_count += 1;
-                output::print_success(&format!(
-                    "{} ({})",
-                    filename,
-                    format_byte_size(bytes)
-                ));
+                output::print_success(&format!("{} ({})", filename, format_byte_size(bytes)));
             }
             Err(e) => {
                 output::print_error(&format!("Failed to download '{}': {}", url, e));
@@ -1053,7 +1049,12 @@ fn content_disposition_filename(response: &reqwest::Response) -> Option<String> 
     let value = header.to_str().ok()?;
     // Parse: attachment; filename="name.ext" or filename=name.ext; ...
     let after = value.split("filename=").nth(1)?;
-    let name = after.split(';').next()?.trim().trim_matches('"').trim_matches('\'');
+    let name = after
+        .split(';')
+        .next()?
+        .trim()
+        .trim_matches('"')
+        .trim_matches('\'');
     if name.is_empty() {
         return None;
     }
