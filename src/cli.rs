@@ -26,6 +26,10 @@ pub enum Commands {
         /// Workspace name to associate with this token
         #[arg(long, default_value = "default")]
         name: String,
+
+        /// Store token in OS keychain instead of file
+        #[arg(long)]
+        keyring: bool,
     },
 
     /// Manage issues

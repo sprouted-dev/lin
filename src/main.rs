@@ -47,9 +47,13 @@ async fn run(cli: Cli) -> Result<()> {
     let json = cli.json;
 
     match cli.command {
-        Commands::Login { token, name } => {
+        Commands::Login {
+            token,
+            name,
+            keyring,
+        } => {
             let workspace = ws_flag.unwrap_or(&name);
-            commands::login::run(&token, workspace).await?;
+            commands::login::run(&token, workspace, keyring).await?;
         }
 
         Commands::Workspace(cmd) => match cmd {
