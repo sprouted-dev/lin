@@ -7,9 +7,14 @@ use crate::auth;
 use crate::config::Config;
 use crate::output;
 
-pub async fn run(token: &str, workspace_name: &str, use_keyring: bool) -> Result<()> {
+pub async fn run(
+    token: &str,
+    workspace_name: &str,
+    use_keyring: bool,
+    verbose: bool,
+) -> Result<()> {
     // Validate the token by querying the viewer
-    let client = LinearClient::new(token);
+    let client = LinearClient::new(token).with_verbose(verbose);
     let viewer: ViewerData = client.execute(VIEWER_QUERY, None).await?;
 
     // Store the token
