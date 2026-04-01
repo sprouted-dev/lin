@@ -65,6 +65,15 @@ pub async fn view(client: &LinearClient, id: &str, json: bool) -> Result<()> {
     if let Some(ref project) = issue.project {
         output::print_field("Project", &project.name);
     }
+    if let Some(ref cycle) = issue.cycle {
+        let display = match (&cycle.name, cycle.number) {
+            (Some(name), Some(num)) => format!("{} (#{})", name, num),
+            (Some(name), None) => name.clone(),
+            (None, Some(num)) => format!("#{}", num),
+            (None, None) => "—".to_string(),
+        };
+        output::print_field("Cycle", &display);
+    }
     if let Some(priority) = issue.priority {
         let label = match priority as i32 {
             0 => "None",

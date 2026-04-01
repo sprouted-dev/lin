@@ -92,6 +92,15 @@ pub struct Issue {
     pub labels: Option<Connection<Label>>,
     pub children: Option<Connection<ChildIssue>>,
     pub parent: Option<ParentIssue>,
+    pub cycle: Option<CycleRef>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CycleRef {
+    pub id: String,
+    pub number: Option<i32>,
+    pub name: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
