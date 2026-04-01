@@ -917,7 +917,7 @@ pub async fn attachment_download(
 
     let mut download_urls: Vec<String> = Vec::new();
 
-    // Collect formal attachment URLs
+    // Collect formal attachment URLs (only uploads.linear.app)
     for att in &data.issue.attachments.nodes {
         let Some(url) = &att.url else { continue };
 
@@ -925,6 +925,14 @@ pub async fn attachment_download(
             if !att.id.starts_with(fid) {
                 continue;
             }
+        }
+
+        if !url.contains("uploads.linear.app") {
+            output::print_field(
+                "Skipping",
+                &format!("{} (not a Linear upload)", att.title.as_deref().unwrap_or(url)),
+            );
+            continue;
         }
 
         if !download_urls.contains(url) {
@@ -954,9 +962,10 @@ pub async fn attachment_download(
     let http_client = reqwest::Client::new();
     let token = client.token();
     let mut success_count = 0;
+    let mut used_filenames: Vec<String> = Vec::new();
 
     for url in &download_urls {
-        match download_file(&http_client, url, token, output_path).await {
+        match download_file(&http_client, url, token, output_path, &mut used_filenames).await {
             Ok((filename, bytes)) => {
                 success_count += 1;
                 output::print_success(&format!(
@@ -987,19 +996,30 @@ async fn download_file(
     url: &str,
     token: &str,
     output_dir: &std::path::Path,
+    used_filenames: &mut Vec<String>,
 ) -> Result<(String, usize)> {
-    let mut request = client.get(url);
-    if url.contains("uploads.linear.app") {
-        request = request.header("Authorization", token);
-    }
-    let response = request.send().await?;
+    let response = client
+        .get(url)
+        .header("Authorization", token)
+        .send()
+        .await?;
     if !response.status().is_success() {
         bail!("HTTP {}", response.status());
     }
 
-    let filename = content_disposition_filename(&response)
+    let raw_name = content_disposition_filename(&response)
         .or_else(|| filename_from_url(url))
         .unwrap_or_else(|| "download".to_string());
+
+    // Sanitize: strip path components to prevent traversal
+    let safe_name = std::path::Path::new(&raw_name)
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "download".to_string());
+
+    // Deduplicate: append suffix if filename already used
+    let filename = deduplicate_filename(&safe_name, used_filenames);
+    used_filenames.push(filename.clone());
 
     let bytes = response.bytes().await?;
     let len = bytes.len();
@@ -1007,12 +1027,33 @@ async fn download_file(
     Ok((filename, len))
 }
 
+fn deduplicate_filename(name: &str, used: &[String]) -> String {
+    if !used.contains(&name.to_string()) {
+        return name.to_string();
+    }
+    let stem = std::path::Path::new(name)
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| name.to_string());
+    let ext = std::path::Path::new(name)
+        .extension()
+        .map(|e| format!(".{}", e.to_string_lossy()));
+    let mut i = 1;
+    loop {
+        let candidate = format!("{}-{}{}", stem, i, ext.as_deref().unwrap_or(""));
+        if !used.contains(&candidate) {
+            return candidate;
+        }
+        i += 1;
+    }
+}
+
 fn content_disposition_filename(response: &reqwest::Response) -> Option<String> {
     let header = response.headers().get("content-disposition")?;
     let value = header.to_str().ok()?;
-    // Parse: attachment; filename="name.ext"
+    // Parse: attachment; filename="name.ext" or filename=name.ext; ...
     let after = value.split("filename=").nth(1)?;
-    let name = after.trim_matches('"').trim_matches('\'');
+    let name = after.split(';').next()?.trim().trim_matches('"').trim_matches('\'');
     if name.is_empty() {
         return None;
     }
@@ -1027,8 +1068,6 @@ fn filename_from_url(url: &str) -> Option<String> {
     }
     Some(percent_decode(segment))
 }
-
-/// Fallback URL percent-decoding for filenames when Content-Disposition is unavailable.
 
 fn extract_inline_upload_urls(text: &str) -> Vec<String> {
     let prefix = "https://uploads.linear.app/";
