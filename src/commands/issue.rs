@@ -902,6 +902,187 @@ pub async fn attachments(client: &LinearClient, id: &str, json: bool) -> Result<
     Ok(())
 }
 
+pub async fn attachment_download(
+    client: &LinearClient,
+    id: &str,
+    output_dir: &str,
+    filter_id: Option<&str>,
+) -> Result<()> {
+    let data: IssueDownloadData = client
+        .execute(
+            ISSUE_ATTACHMENTS_DOWNLOAD_QUERY,
+            Some(json!({ "id": id })),
+        )
+        .await?;
+
+    let mut download_urls: Vec<String> = Vec::new();
+
+    // Collect formal attachment URLs
+    for att in &data.issue.attachments.nodes {
+        let Some(url) = &att.url else { continue };
+
+        if let Some(fid) = filter_id {
+            if !att.id.starts_with(fid) {
+                continue;
+            }
+        }
+
+        if !download_urls.contains(url) {
+            download_urls.push(url.clone());
+        }
+    }
+
+    // Collect inline uploads from description (skip when filtering by ID)
+    if filter_id.is_none() {
+        if let Some(desc) = &data.issue.description {
+            for url in extract_inline_upload_urls(desc) {
+                if !download_urls.contains(&url) {
+                    download_urls.push(url);
+                }
+            }
+        }
+    }
+
+    if download_urls.is_empty() {
+        println!("  No attachments to download.");
+        return Ok(());
+    }
+
+    let output_path = std::path::Path::new(output_dir);
+    std::fs::create_dir_all(output_path)?;
+
+    let http_client = reqwest::Client::new();
+    let token = client.token();
+    let mut success_count = 0;
+
+    for url in &download_urls {
+        match download_file(&http_client, url, token, output_path).await {
+            Ok((filename, bytes)) => {
+                success_count += 1;
+                output::print_success(&format!(
+                    "{} ({})",
+                    filename,
+                    format_byte_size(bytes)
+                ));
+            }
+            Err(e) => {
+                output::print_error(&format!("Failed to download '{}': {}", url, e));
+            }
+        }
+    }
+
+    if download_urls.len() > 1 {
+        output::print_success(&format!(
+            "Downloaded {}/{} files to {}",
+            success_count,
+            download_urls.len(),
+            output_dir
+        ));
+    }
+    Ok(())
+}
+
+async fn download_file(
+    client: &reqwest::Client,
+    url: &str,
+    token: &str,
+    output_dir: &std::path::Path,
+) -> Result<(String, usize)> {
+    let mut request = client.get(url);
+    if url.contains("uploads.linear.app") {
+        request = request.header("Authorization", token);
+    }
+    let response = request.send().await?;
+    if !response.status().is_success() {
+        bail!("HTTP {}", response.status());
+    }
+
+    let filename = content_disposition_filename(&response)
+        .or_else(|| filename_from_url(url))
+        .unwrap_or_else(|| "download".to_string());
+
+    let bytes = response.bytes().await?;
+    let len = bytes.len();
+    std::fs::write(output_dir.join(&filename), &bytes)?;
+    Ok((filename, len))
+}
+
+fn content_disposition_filename(response: &reqwest::Response) -> Option<String> {
+    let header = response.headers().get("content-disposition")?;
+    let value = header.to_str().ok()?;
+    // Parse: attachment; filename="name.ext"
+    let after = value.split("filename=").nth(1)?;
+    let name = after.trim_matches('"').trim_matches('\'');
+    if name.is_empty() {
+        return None;
+    }
+    Some(name.to_string())
+}
+
+fn filename_from_url(url: &str) -> Option<String> {
+    let path = url.split('?').next()?;
+    let segment = path.rsplit('/').next()?;
+    if segment.is_empty() {
+        return None;
+    }
+    Some(percent_decode(segment))
+}
+
+/// Fallback URL percent-decoding for filenames when Content-Disposition is unavailable.
+
+fn extract_inline_upload_urls(text: &str) -> Vec<String> {
+    let prefix = "https://uploads.linear.app/";
+    let mut results = Vec::new();
+    let mut search_from = 0;
+
+    while let Some(start) = text[search_from..].find(prefix) {
+        let abs_start = search_from + start;
+        let rest = &text[abs_start..];
+        let end = rest
+            .find(|c: char| c.is_whitespace() || c == ')' || c == ']' || c == '>' || c == '"')
+            .unwrap_or(rest.len());
+        let url = text[abs_start..abs_start + end].to_string();
+        results.push(url);
+        search_from = abs_start + end;
+    }
+    results
+}
+
+fn percent_decode(s: &str) -> String {
+    let mut bytes = Vec::with_capacity(s.len());
+    let mut iter = s.as_bytes().iter();
+    while let Some(&b) = iter.next() {
+        if b == b'%' {
+            if let (Some(&h1), Some(&h2)) = (iter.next(), iter.next()) {
+                if let Ok(decoded) =
+                    u8::from_str_radix(std::str::from_utf8(&[h1, h2]).unwrap_or(""), 16)
+                {
+                    bytes.push(decoded);
+                    continue;
+                }
+                bytes.push(b'%');
+                bytes.push(h1);
+                bytes.push(h2);
+            } else {
+                bytes.push(b'%');
+            }
+        } else {
+            bytes.push(b);
+        }
+    }
+    String::from_utf8(bytes).unwrap_or_else(|_| s.to_string())
+}
+
+fn format_byte_size(bytes: usize) -> String {
+    if bytes < 1024 {
+        format!("{}", bytes)
+    } else if bytes < 1024 * 1024 {
+        format!("{:.1} KB", bytes as f64 / 1024.0)
+    } else {
+        format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
+    }
+}
+
 fn print_issues_table(issues: &[Issue]) {
     output::print_header(&format!("Issues ({})", issues.len()));
 
