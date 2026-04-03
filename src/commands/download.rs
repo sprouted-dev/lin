@@ -29,3 +29,20 @@ pub async fn run(token: &str, url: &str, output: &str) -> Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn rejects_non_linear_url() {
+        let result = run("fake-token", "https://example.com/file.csv", ".").await;
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("uploads.linear.app")
+        );
+    }
+}

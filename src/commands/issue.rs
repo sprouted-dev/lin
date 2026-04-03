@@ -1022,7 +1022,7 @@ pub(crate) async fn download_file(
     Ok((filename, len))
 }
 
-pub(crate) fn deduplicate_filename(name: &str, used: &[String]) -> String {
+fn deduplicate_filename(name: &str, used: &[String]) -> String {
     if !used.contains(&name.to_string()) {
         return name.to_string();
     }
@@ -1043,7 +1043,7 @@ pub(crate) fn deduplicate_filename(name: &str, used: &[String]) -> String {
     }
 }
 
-pub(crate) fn content_disposition_filename(response: &reqwest::Response) -> Option<String> {
+fn content_disposition_filename(response: &reqwest::Response) -> Option<String> {
     let header = response.headers().get("content-disposition")?;
     let value = header.to_str().ok()?;
     // Parse: attachment; filename="name.ext" or filename=name.ext; ...

@@ -1410,4 +1410,34 @@ mod tests {
             _ => panic!("expected Issue Edit"),
         }
     }
+
+    #[test]
+    fn download_parses() {
+        let cli = parse(&["lin", "download", "https://uploads.linear.app/abc/def/ghi"]);
+        match cli.command {
+            Commands::Download { url, output } => {
+                assert_eq!(url, "https://uploads.linear.app/abc/def/ghi");
+                assert_eq!(output, ".");
+            }
+            _ => panic!("expected Download"),
+        }
+    }
+
+    #[test]
+    fn download_with_output() {
+        let cli = parse(&[
+            "lin",
+            "download",
+            "https://uploads.linear.app/abc/def/ghi",
+            "-o",
+            "/tmp/downloads",
+        ]);
+        match cli.command {
+            Commands::Download { url, output } => {
+                assert_eq!(url, "https://uploads.linear.app/abc/def/ghi");
+                assert_eq!(output, "/tmp/downloads");
+            }
+            _ => panic!("expected Download"),
+        }
+    }
 }
