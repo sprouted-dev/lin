@@ -987,7 +987,7 @@ pub async fn attachment_download(
     Ok(())
 }
 
-async fn download_file(
+pub(crate) async fn download_file(
     client: &reqwest::Client,
     url: &str,
     token: &str,
@@ -1022,7 +1022,7 @@ async fn download_file(
     Ok((filename, len))
 }
 
-fn deduplicate_filename(name: &str, used: &[String]) -> String {
+pub(crate) fn deduplicate_filename(name: &str, used: &[String]) -> String {
     if !used.contains(&name.to_string()) {
         return name.to_string();
     }
@@ -1043,7 +1043,7 @@ fn deduplicate_filename(name: &str, used: &[String]) -> String {
     }
 }
 
-fn content_disposition_filename(response: &reqwest::Response) -> Option<String> {
+pub(crate) fn content_disposition_filename(response: &reqwest::Response) -> Option<String> {
     let header = response.headers().get("content-disposition")?;
     let value = header.to_str().ok()?;
     // Parse: attachment; filename="name.ext" or filename=name.ext; ...
@@ -1078,7 +1078,7 @@ fn extract_inline_upload_urls(text: &str) -> Vec<String> {
     results
 }
 
-fn format_byte_size(bytes: usize) -> String {
+pub(crate) fn format_byte_size(bytes: usize) -> String {
     if bytes < 1024 {
         format!("{} B", bytes)
     } else if bytes < 1024 * 1024 {

@@ -72,6 +72,16 @@ pub enum Commands {
     #[command(subcommand)]
     Initiative(InitiativeCommand),
 
+    /// Download a file from a Linear upload URL
+    Download {
+        /// Linear upload URL (https://uploads.linear.app/...)
+        url: String,
+
+        /// Output directory (defaults to current directory)
+        #[arg(long, short, default_value = ".")]
+        output: String,
+    },
+
     /// View changelog
     Changelog,
 }
