@@ -561,6 +561,25 @@ pub struct CycleCreateData {
     pub cycle_create: CyclePayload,
 }
 
+#[derive(Debug, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct CycleUpdateInput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub starts_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ends_at: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CycleUpdateData {
+    pub cycle_update: CyclePayload,
+}
+
 // --- Initiatives ---
 
 #[derive(Debug, Clone, Deserialize)]
