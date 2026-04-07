@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `cycle edit` command with `--name`, `--description`, `--starts`, and `--ends` flags for updating cycle properties
+
 ## [0.7.0] - 2026-04-01
 
 ### Added
