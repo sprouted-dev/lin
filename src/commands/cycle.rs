@@ -141,20 +141,13 @@ pub async fn create(
     }
 
     if let Some(cycle) = data.cycle_create.cycle {
-        let label = cycle.name.as_deref().unwrap_or("(unnamed)");
-        let num = cycle.number.map(|n| format!(" #{}", n)).unwrap_or_default();
-        output::print_success(&format!("Created cycle {}{}", label, num));
-        if let Some(ref start) = cycle.starts_at {
-            output::print_field("Start", &output::format_date(start));
-        }
-        if let Some(ref end) = cycle.ends_at {
-            output::print_field("End", &output::format_date(end));
-        }
+        print_cycle_summary("Created", &cycle);
     }
 
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn edit(
     client: &LinearClient,
     id: &str,
@@ -168,28 +161,19 @@ pub async fn edit(
     let team_id = resolve::resolve_team_identifier(client, team).await?;
     let cycle_id = resolve::resolve_cycle_identifier(client, &team_id, id).await?;
 
-    let mut input = CycleUpdateInput::default();
+    let starts_at = starts.map(date::parse_date).transpose()?;
+    let ends_at = ends.map(date::parse_date).transpose()?;
 
-    if let Some(n) = name {
-        input.name = Some(n);
-    }
-    if let Some(d) = description {
-        input.description = Some(d);
-    }
-    if let Some(s) = starts {
-        input.starts_at = Some(date::parse_date(s)?);
-    }
-    if let Some(e) = ends {
-        input.ends_at = Some(date::parse_date(e)?);
-    }
-
-    if input.name.is_none()
-        && input.description.is_none()
-        && input.starts_at.is_none()
-        && input.ends_at.is_none()
-    {
+    if name.is_none() && description.is_none() && starts_at.is_none() && ends_at.is_none() {
         bail!("No updates provided. Use --name, --description, --starts, or --ends.");
     }
+
+    let input = CycleUpdateInput {
+        name,
+        description,
+        starts_at,
+        ends_at,
+    };
 
     if json_flag {
         let data = client
@@ -214,18 +198,7 @@ pub async fn edit(
     }
 
     if let Some(cycle) = data.cycle_update.cycle {
-        let label = cycle.name.as_deref().unwrap_or("(unnamed)");
-        let num = cycle.number.map(|n| format!(" #{}", n)).unwrap_or_default();
-        output::print_success(&format!("Updated cycle {}{}", label, num));
-        if let Some(ref desc) = cycle.description {
-            output::print_field("Description", desc);
-        }
-        if let Some(ref start) = cycle.starts_at {
-            output::print_field("Start", &output::format_date(start));
-        }
-        if let Some(ref end) = cycle.ends_at {
-            output::print_field("End", &output::format_date(end));
-        }
+        print_cycle_summary("Updated", &cycle);
     }
 
     Ok(())
@@ -315,6 +288,21 @@ pub async fn show(client: &LinearClient, id: &str, team: &str, json_flag: bool) 
     }
 
     Ok(())
+}
+
+fn print_cycle_summary(verb: &str, cycle: &Cycle) {
+    let label = cycle.name.as_deref().unwrap_or("(unnamed)");
+    let num = cycle.number.map(|n| format!(" #{}", n)).unwrap_or_default();
+    output::print_success(&format!("{} cycle {}{}", verb, label, num));
+    if let Some(ref desc) = cycle.description {
+        output::print_field("Description", desc);
+    }
+    if let Some(ref start) = cycle.starts_at {
+        output::print_field("Start", &output::format_date(start));
+    }
+    if let Some(ref end) = cycle.ends_at {
+        output::print_field("End", &output::format_date(end));
+    }
 }
 
 fn format_progress_bar(progress: f64, width: usize) -> String {
