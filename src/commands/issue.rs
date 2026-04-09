@@ -987,6 +987,13 @@ pub async fn attachment_download(
     Ok(())
 }
 
+fn is_linear_upload_url(url: &str) -> bool {
+    reqwest::Url::parse(url)
+        .ok()
+        .and_then(|u| u.host_str().map(|h| h == "uploads.linear.app"))
+        .unwrap_or(false)
+}
+
 pub(crate) async fn download_file(
     client: &reqwest::Client,
     url: &str,
@@ -995,11 +1002,7 @@ pub(crate) async fn download_file(
     used_filenames: &mut Vec<String>,
 ) -> Result<(String, usize)> {
     let mut request = client.get(url);
-    if reqwest::Url::parse(url)
-        .ok()
-        .and_then(|u| u.host_str().map(|h| h == "uploads.linear.app"))
-        .unwrap_or(false)
-    {
+    if is_linear_upload_url(url) {
         request = request.header("Authorization", token);
     }
     let response = request.send().await?;
@@ -1189,5 +1192,34 @@ No link here."#;
         assert_eq!(format_byte_size(500), "500 B");
         assert_eq!(format_byte_size(1024), "1.0 KB");
         assert_eq!(format_byte_size(1024 * 1024 * 2), "2.0 MB");
+    }
+
+    #[test]
+    fn is_linear_upload_url_accepts_valid() {
+        assert!(is_linear_upload_url(
+            "https://uploads.linear.app/org/abc/def"
+        ));
+    }
+
+    #[test]
+    fn is_linear_upload_url_rejects_spoofed() {
+        // Subdomain spoofing
+        assert!(!is_linear_upload_url(
+            "https://uploads.linear.app.evil.com/file"
+        ));
+        // Query param spoofing
+        assert!(!is_linear_upload_url(
+            "https://evil.com?ref=uploads.linear.app"
+        ));
+        // Path spoofing
+        assert!(!is_linear_upload_url(
+            "https://evil.com/uploads.linear.app"
+        ));
+    }
+
+    #[test]
+    fn is_linear_upload_url_rejects_non_url() {
+        assert!(!is_linear_upload_url("not-a-url"));
+        assert!(!is_linear_upload_url(""));
     }
 }

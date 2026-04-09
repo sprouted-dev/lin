@@ -58,5 +58,17 @@ mod tests {
         let result =
             run("fake-token", "https://evil.com?ref=uploads.linear.app", ".").await;
         assert!(result.is_err());
+
+        // Path spoofing
+        let result =
+            run("fake-token", "https://evil.com/uploads.linear.app", ".").await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn rejects_invalid_url() {
+        let result = run("fake-token", "not-a-url", ".").await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("invalid URL"));
     }
 }
