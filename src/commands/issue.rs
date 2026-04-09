@@ -995,7 +995,11 @@ pub(crate) async fn download_file(
     used_filenames: &mut Vec<String>,
 ) -> Result<(String, usize)> {
     let mut request = client.get(url);
-    if url.contains("uploads.linear.app") {
+    if reqwest::Url::parse(url)
+        .ok()
+        .and_then(|u| u.host_str().map(|h| h == "uploads.linear.app"))
+        .unwrap_or(false)
+    {
         request = request.header("Authorization", token);
     }
     let response = request.send().await?;
