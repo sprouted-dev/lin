@@ -51,17 +51,20 @@ mod tests {
     #[tokio::test]
     async fn rejects_spoofed_linear_url() {
         // Subdomain spoofing
-        let result = run("fake-token", "https://uploads.linear.app.evil.com/file", ".").await;
+        let result = run(
+            "fake-token",
+            "https://uploads.linear.app.evil.com/file",
+            ".",
+        )
+        .await;
         assert!(result.is_err());
 
         // Query param spoofing
-        let result =
-            run("fake-token", "https://evil.com?ref=uploads.linear.app", ".").await;
+        let result = run("fake-token", "https://evil.com?ref=uploads.linear.app", ".").await;
         assert!(result.is_err());
 
         // Path spoofing
-        let result =
-            run("fake-token", "https://evil.com/uploads.linear.app", ".").await;
+        let result = run("fake-token", "https://evil.com/uploads.linear.app", ".").await;
         assert!(result.is_err());
     }
 

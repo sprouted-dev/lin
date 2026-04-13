@@ -1212,9 +1212,7 @@ No link here."#;
             "https://evil.com?ref=uploads.linear.app"
         ));
         // Path spoofing
-        assert!(!is_linear_upload_url(
-            "https://evil.com/uploads.linear.app"
-        ));
+        assert!(!is_linear_upload_url("https://evil.com/uploads.linear.app"));
     }
 
     #[test]
