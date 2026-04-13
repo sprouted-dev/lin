@@ -293,6 +293,9 @@ pub async fn fetch_all_labels(
 
         if data.issue_labels.page_info.has_next_page {
             after = data.issue_labels.page_info.end_cursor;
+            if after.is_none() {
+                break;
+            }
         } else {
             break;
         }
