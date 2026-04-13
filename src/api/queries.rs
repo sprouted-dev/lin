@@ -311,12 +311,16 @@ pub const USERS_QUERY: &str = r#"
 // --- Labels ---
 
 pub const LABELS_QUERY: &str = r#"
-    query IssueLabels($filter: IssueLabelFilter) {
-        issueLabels(filter: $filter) {
+    query IssueLabels($filter: IssueLabelFilter, $first: Int, $after: String) {
+        issueLabels(filter: $filter, first: $first, after: $after) {
             nodes {
                 id
                 name
                 color
+            }
+            pageInfo {
+                hasNextPage
+                endCursor
             }
         }
     }

@@ -245,10 +245,9 @@ pub async fn resolve_cycle_identifier(
 }
 
 /// Resolve label names to label IDs via case-insensitive matching.
+/// Paginates through all workspace labels to avoid missing any.
 pub async fn resolve_label_names(client: &LinearClient, names: &[String]) -> Result<Vec<String>> {
-    let data: LabelsData = client.execute(LABELS_QUERY, None).await?;
-
-    let all_labels = data.issue_labels.nodes;
+    let all_labels = fetch_all_labels(client, None).await?;
     let mut ids = Vec::new();
 
     for name in names {
@@ -269,4 +268,38 @@ pub async fn resolve_label_names(client: &LinearClient, names: &[String]) -> Res
     }
 
     Ok(ids)
+}
+
+/// Fetch all labels, paginating through all pages.
+pub async fn fetch_all_labels(
+    client: &LinearClient,
+    filter: Option<serde_json::Value>,
+) -> Result<Vec<Label>> {
+    let mut all_labels: Vec<Label> = Vec::new();
+    let mut after: Option<String> = None;
+
+    loop {
+        let mut vars = json!({ "first": 250 });
+        if let Some(ref f) = filter {
+            vars["filter"] = f.clone();
+        }
+        if let Some(ref cursor) = after {
+            vars["after"] = json!(cursor);
+        }
+
+        let data: LabelsData = client.execute(LABELS_QUERY, Some(vars)).await?;
+
+        all_labels.extend(data.issue_labels.nodes);
+
+        if data.issue_labels.page_info.has_next_page {
+            after = data.issue_labels.page_info.end_cursor;
+            if after.is_none() {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+
+    Ok(all_labels)
 }

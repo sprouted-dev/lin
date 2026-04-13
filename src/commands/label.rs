@@ -7,30 +7,26 @@ use crate::api::resolve;
 use crate::api::types::*;
 use crate::output;
 
-pub async fn list(client: &LinearClient, team: Option<&str>, json: bool) -> Result<()> {
-    let variables = match team {
+pub async fn list(client: &LinearClient, team: Option<&str>, json_output: bool) -> Result<()> {
+    let filter = match team {
         Some(t) => {
             let tid = resolve::resolve_team_identifier(client, t).await?;
             Some(json!({
-                "filter": {
-                    "team": {
-                        "id": { "eq": tid }
-                    }
+                "team": {
+                    "id": { "eq": tid }
                 }
             }))
         }
         None => None,
     };
 
-    if json {
-        let data = client.execute_raw(LABELS_QUERY, variables).await?;
-        output::print_json(&data);
+    let labels = resolve::fetch_all_labels(client, filter).await?;
+
+    if json_output {
+        output::print_json(&serde_json::to_value(&labels)?);
         return Ok(());
     }
 
-    let data: LabelsData = client.execute(LABELS_QUERY, variables).await?;
-
-    let labels = data.issue_labels.nodes;
     output::print_header(&format!("Labels ({})", labels.len()));
 
     let headers = &["Name", "Color"];

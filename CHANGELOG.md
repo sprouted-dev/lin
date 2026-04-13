@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `cycle edit` command with `--name`, `--description`, `--starts`, and `--ends` flags for updating cycle properties
 
+### Fixed
+- `--label` flag now finds all workspace labels by paginating through the Linear API instead of only checking the first page
+
 ## [0.7.0] - 2026-04-01
 
 ### Added
