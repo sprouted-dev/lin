@@ -626,6 +626,31 @@ pub enum CycleCommand {
         #[arg(long)]
         description: Option<String>,
     },
+    /// Edit a cycle's name or description
+    Edit {
+        /// Cycle name, number, or "current"
+        id: String,
+
+        /// Team name, key, or UUID
+        #[arg(long)]
+        team: String,
+
+        /// New cycle name
+        #[arg(long)]
+        name: Option<String>,
+
+        /// New cycle description
+        #[arg(long)]
+        description: Option<String>,
+
+        /// New start date (ISO 8601, e.g. 2026-04-07)
+        #[arg(long)]
+        starts: Option<String>,
+
+        /// New end date (ISO 8601, e.g. 2026-04-14)
+        #[arg(long)]
+        ends: Option<String>,
+    },
     /// View cycle details including issues
     Show {
         /// Cycle name, number, or "current"
@@ -1304,6 +1329,44 @@ mod tests {
                 assert_eq!(team, "eng");
             }
             _ => panic!("expected Cycle Show"),
+        }
+    }
+
+    #[test]
+    fn cycle_edit_parses() {
+        let cli = parse(&[
+            "lin",
+            "cycle",
+            "edit",
+            "current",
+            "--team",
+            "eng",
+            "--name",
+            "Sprint 5",
+            "--description",
+            "Updated desc",
+            "--starts",
+            "2026-04-07",
+            "--ends",
+            "2026-04-14",
+        ]);
+        match cli.command {
+            Commands::Cycle(CycleCommand::Edit {
+                id,
+                team,
+                name,
+                description,
+                starts,
+                ends,
+            }) => {
+                assert_eq!(id, "current");
+                assert_eq!(team, "eng");
+                assert_eq!(name.as_deref(), Some("Sprint 5"));
+                assert_eq!(description.as_deref(), Some("Updated desc"));
+                assert_eq!(starts.as_deref(), Some("2026-04-07"));
+                assert_eq!(ends.as_deref(), Some("2026-04-14"));
+            }
+            _ => panic!("expected Cycle Edit"),
         }
     }
 

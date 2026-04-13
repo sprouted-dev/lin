@@ -430,6 +430,26 @@ async fn run(cli: Cli) -> Result<()> {
                     )
                     .await?;
                 }
+                CycleCommand::Edit {
+                    id,
+                    team,
+                    name,
+                    description,
+                    starts,
+                    ends,
+                } => {
+                    commands::cycle::edit(
+                        &ctx.client,
+                        &id,
+                        &team,
+                        name,
+                        description,
+                        starts.as_deref(),
+                        ends.as_deref(),
+                        ctx.json,
+                    )
+                    .await?;
+                }
                 CycleCommand::Show { id, team } => {
                     commands::cycle::show(&ctx.client, &id, &team, ctx.json).await?;
                 }

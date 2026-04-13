@@ -457,6 +457,22 @@ pub const CYCLE_CREATE_MUTATION: &str = r#"
     }
 "#;
 
+pub const CYCLE_UPDATE_MUTATION: &str = r#"
+    mutation CycleUpdate($id: String!, $input: CycleUpdateInput!) {
+        cycleUpdate(id: $id, input: $input) {
+            success
+            cycle {
+                id
+                number
+                name
+                description
+                startsAt
+                endsAt
+            }
+        }
+    }
+"#;
+
 // --- Initiatives ---
 
 pub const INITIATIVES_QUERY: &str = r#"
