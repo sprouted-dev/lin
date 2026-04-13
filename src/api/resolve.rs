@@ -287,9 +287,7 @@ pub async fn fetch_all_labels(
             vars["after"] = json!(cursor);
         }
 
-        let data: LabelsData = client
-            .execute(LABELS_QUERY, Some(vars))
-            .await?;
+        let data: LabelsData = client.execute(LABELS_QUERY, Some(vars)).await?;
 
         all_labels.extend(data.issue_labels.nodes);
 
