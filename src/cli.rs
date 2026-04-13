@@ -72,6 +72,16 @@ pub enum Commands {
     #[command(subcommand)]
     Initiative(InitiativeCommand),
 
+    /// Download a file from a Linear upload URL
+    Download {
+        /// Linear upload URL (https://uploads.linear.app/...)
+        url: String,
+
+        /// Output directory (defaults to current directory)
+        #[arg(long, short, default_value = ".")]
+        output: String,
+    },
+
     /// View changelog
     Changelog,
 }
@@ -1398,6 +1408,36 @@ mod tests {
                 assert_eq!(cycle.as_deref(), Some("42"));
             }
             _ => panic!("expected Issue Edit"),
+        }
+    }
+
+    #[test]
+    fn download_parses() {
+        let cli = parse(&["lin", "download", "https://uploads.linear.app/abc/def/ghi"]);
+        match cli.command {
+            Commands::Download { url, output } => {
+                assert_eq!(url, "https://uploads.linear.app/abc/def/ghi");
+                assert_eq!(output, ".");
+            }
+            _ => panic!("expected Download"),
+        }
+    }
+
+    #[test]
+    fn download_with_output() {
+        let cli = parse(&[
+            "lin",
+            "download",
+            "https://uploads.linear.app/abc/def/ghi",
+            "-o",
+            "/tmp/downloads",
+        ]);
+        match cli.command {
+            Commands::Download { url, output } => {
+                assert_eq!(url, "https://uploads.linear.app/abc/def/ghi");
+                assert_eq!(output, "/tmp/downloads");
+            }
+            _ => panic!("expected Download"),
         }
     }
 }

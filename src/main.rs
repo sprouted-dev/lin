@@ -468,6 +468,12 @@ async fn run(cli: Cli) -> Result<()> {
             }
         }
 
+        Commands::Download { url, output } => {
+            let ws = workspace::resolve_workspace(ws_flag);
+            let token = auth::get_token(&ws)?;
+            commands::download::run(&token, &url, &output).await?;
+        }
+
         Commands::Changelog => {
             let ctx = ensure_auth(ws_flag, json, verbose)?;
             commands::changelog::run(&ctx.client, ctx.json).await?;
