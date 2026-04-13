@@ -45,7 +45,7 @@ pub struct Team {
 
 // --- Label ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Label {
     pub id: String,
     pub name: String,
@@ -391,12 +391,28 @@ pub struct UsersData {
     pub users: Connection<User>,
 }
 
+// --- Pagination ---
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PageInfo {
+    pub has_next_page: bool,
+    pub end_cursor: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaginatedConnection<T> {
+    pub nodes: Vec<T>,
+    pub page_info: PageInfo,
+}
+
 // --- Labels ---
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LabelsData {
-    pub issue_labels: Connection<Label>,
+    pub issue_labels: PaginatedConnection<Label>,
 }
 
 #[derive(Debug, Deserialize)]
