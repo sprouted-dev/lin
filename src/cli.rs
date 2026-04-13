@@ -1345,6 +1345,10 @@ mod tests {
             "Sprint 5",
             "--description",
             "Updated desc",
+            "--starts",
+            "2026-04-07",
+            "--ends",
+            "2026-04-14",
         ]);
         match cli.command {
             Commands::Cycle(CycleCommand::Edit {
@@ -1359,8 +1363,8 @@ mod tests {
                 assert_eq!(team, "eng");
                 assert_eq!(name.as_deref(), Some("Sprint 5"));
                 assert_eq!(description.as_deref(), Some("Updated desc"));
-                assert!(starts.is_none());
-                assert!(ends.is_none());
+                assert_eq!(starts.as_deref(), Some("2026-04-07"));
+                assert_eq!(ends.as_deref(), Some("2026-04-14"));
             }
             _ => panic!("expected Cycle Edit"),
         }
