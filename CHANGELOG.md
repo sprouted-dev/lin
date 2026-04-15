@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `cycle edit` command with `--name`, `--description`, `--starts`, and `--ends` flags for updating cycle properties
 - `lin download <URL>` command to download files directly from `uploads.linear.app` URLs without needing the parent issue
+- `comment add --parent <comment-id>` and `issue comment --parent <comment-id>` flags to nest a reply under an existing comment via Linear's `commentCreate` `parentId` input
+- `comment reply <comment-id> <body>` subcommand that looks up the parent comment's issue automatically, so replies only need the parent comment UUID
 
 ### Fixed
 - `--label` flag now finds all workspace labels by paginating through the Linear API instead of only checking the first page

@@ -235,6 +235,22 @@ pub struct CommentPayload {
     pub comment: Option<Comment>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct CommentByIdData {
+    pub comment: Option<CommentWithIssue>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CommentWithIssue {
+    pub id: String,
+    pub issue: CommentIssueRef,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CommentIssueRef {
+    pub id: String,
+}
+
 // --- Project (extended) ---
 
 #[derive(Debug, Clone, Deserialize)]

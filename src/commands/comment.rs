@@ -56,6 +56,7 @@ pub async fn add(
     issue_id: &str,
     body: &str,
     attachment_path: Option<&str>,
+    parent_id: Option<&str>,
 ) -> Result<()> {
     let mut final_body = body.to_string();
 
@@ -69,10 +70,13 @@ pub async fn add(
         final_body = format!("{}\n\n[{}]({})", final_body, filename, asset_url);
     }
 
-    let input = json!({
+    let mut input = json!({
         "issueId": issue_id,
         "body": final_body,
     });
+    if let Some(parent) = parent_id {
+        input["parentId"] = json!(parent);
+    }
 
     let data: CommentCreateData = client
         .execute(COMMENT_CREATE_MUTATION, Some(json!({ "input": input })))
@@ -82,8 +86,39 @@ pub async fn add(
         bail!("Failed to create comment");
     }
 
-    output::print_success("Comment added");
+    if parent_id.is_some() {
+        output::print_success("Reply added");
+    } else {
+        output::print_success("Comment added");
+    }
     Ok(())
+}
+
+pub async fn reply(
+    client: &LinearClient,
+    parent_comment_id: &str,
+    body: &str,
+    attachment_path: Option<&str>,
+) -> Result<()> {
+    let data: CommentByIdData = client
+        .execute(
+            COMMENT_BY_ID_QUERY,
+            Some(json!({ "id": parent_comment_id })),
+        )
+        .await?;
+
+    let parent = data
+        .comment
+        .ok_or_else(|| anyhow::anyhow!("Comment '{}' not found", parent_comment_id))?;
+
+    add(
+        client,
+        &parent.issue.id,
+        body,
+        attachment_path,
+        Some(&parent.id),
+    )
+    .await
 }
 
 pub async fn edit(

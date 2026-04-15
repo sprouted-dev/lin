@@ -130,6 +130,15 @@ pub const COMMENTS_QUERY: &str = r#"
     }
 "#;
 
+pub const COMMENT_BY_ID_QUERY: &str = r#"
+    query Comment($id: String!) {
+        comment(id: $id) {
+            id
+            issue { id }
+        }
+    }
+"#;
+
 pub const COMMENT_CREATE_MUTATION: &str = r#"
     mutation CommentCreate($input: CommentCreateInput!) {
         commentCreate(input: $input) {
