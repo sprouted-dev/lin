@@ -312,9 +312,33 @@ fn format_progress_bar(progress: f64, width: usize) -> String {
 }
 
 fn truncate(s: &str, max: usize) -> String {
-    if s.len() <= max {
+    if s.chars().count() <= max {
         s.to_string()
     } else {
-        format!("{}…", &s[..max - 1])
+        let prefix: String = s.chars().take(max - 1).collect();
+        format!("{prefix}…")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn truncate_splits_on_char_boundary() {
+        let s = "Submit Block Trading request is unauthenticated — 401s before reaching Schwab";
+        let out = truncate(s, 50);
+        assert_eq!(out.chars().count(), 50);
+        assert!(out.ends_with('…'));
+    }
+
+    #[test]
+    fn truncate_short_string_unchanged() {
+        assert_eq!(truncate("hello", 50), "hello");
+    }
+
+    #[test]
+    fn truncate_multibyte_under_limit() {
+        assert_eq!(truncate("héllo — world", 50), "héllo — world");
     }
 }
