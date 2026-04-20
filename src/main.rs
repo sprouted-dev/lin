@@ -138,7 +138,7 @@ async fn run(cli: Cli) -> Result<()> {
                     )
                     .await?;
                     if let Some(body) = comment {
-                        commands::comment::add(&ctx.client, &id, &body, None).await?;
+                        commands::comment::add(&ctx.client, &id, &body, None, None).await?;
                     }
                 }
                 IssueCommand::Search {
@@ -260,8 +260,16 @@ async fn run(cli: Cli) -> Result<()> {
                     id,
                     body,
                     attachment,
+                    parent,
                 } => {
-                    commands::comment::add(&ctx.client, &id, &body, attachment.as_deref()).await?;
+                    commands::comment::add(
+                        &ctx.client,
+                        &id,
+                        &body,
+                        attachment.as_deref(),
+                        parent.as_deref(),
+                    )
+                    .await?;
                 }
             }
         }
@@ -276,8 +284,24 @@ async fn run(cli: Cli) -> Result<()> {
                     id,
                     body,
                     attachment,
+                    parent,
                 } => {
-                    commands::comment::add(&ctx.client, &id, &body, attachment.as_deref()).await?;
+                    commands::comment::add(
+                        &ctx.client,
+                        &id,
+                        &body,
+                        attachment.as_deref(),
+                        parent.as_deref(),
+                    )
+                    .await?;
+                }
+                CommentCommand::Reply {
+                    id,
+                    body,
+                    attachment,
+                } => {
+                    commands::comment::reply(&ctx.client, &id, &body, attachment.as_deref())
+                        .await?;
                 }
                 CommentCommand::Edit {
                     id,

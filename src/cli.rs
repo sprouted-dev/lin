@@ -362,6 +362,10 @@ pub enum IssueCommand {
         /// Attach a file (uploads and embeds markdown link in body)
         #[arg(long)]
         attachment: Option<String>,
+
+        /// Reply under an existing comment (parent comment UUID)
+        #[arg(long)]
+        parent: Option<String>,
     },
 }
 
@@ -428,6 +432,21 @@ pub enum CommentCommand {
         /// Issue identifier
         id: String,
         /// Comment body
+        body: String,
+
+        /// Attach a file (uploads and embeds markdown link in body)
+        #[arg(long)]
+        attachment: Option<String>,
+
+        /// Reply under an existing comment (parent comment UUID)
+        #[arg(long)]
+        parent: Option<String>,
+    },
+    /// Reply to an existing comment (looks up the issue automatically)
+    Reply {
+        /// Parent comment UUID (get via `lin comment view --show-ids`)
+        id: String,
+        /// Reply body
         body: String,
 
         /// Attach a file (uploads and embeds markdown link in body)
@@ -704,10 +723,12 @@ mod tests {
                 id,
                 body,
                 attachment,
+                parent,
             }) => {
                 assert_eq!(id, "ENG-123");
                 assert_eq!(body, "Hello world");
                 assert!(attachment.is_none());
+                assert!(parent.is_none());
             }
             _ => panic!("expected Issue Comment"),
         }
@@ -727,6 +748,25 @@ mod tests {
         match cli.command {
             Commands::Issue(IssueCommand::Comment { attachment, .. }) => {
                 assert_eq!(attachment.as_deref(), Some("file.png"));
+            }
+            _ => panic!("expected Issue Comment"),
+        }
+    }
+
+    #[test]
+    fn issue_comment_with_parent() {
+        let cli = parse(&[
+            "lin",
+            "issue",
+            "comment",
+            "ENG-1",
+            "nested reply",
+            "--parent",
+            "abc123-parent",
+        ]);
+        match cli.command {
+            Commands::Issue(IssueCommand::Comment { parent, .. }) => {
+                assert_eq!(parent.as_deref(), Some("abc123-parent"));
             }
             _ => panic!("expected Issue Comment"),
         }
@@ -828,11 +868,97 @@ mod tests {
     fn top_level_comment_add_still_works() {
         let cli = parse(&["lin", "comment", "add", "ENG-1", "top level comment"]);
         match cli.command {
-            Commands::Comment(CommentCommand::Add { id, body, .. }) => {
+            Commands::Comment(CommentCommand::Add {
+                id, body, parent, ..
+            }) => {
                 assert_eq!(id, "ENG-1");
                 assert_eq!(body, "top level comment");
+                assert!(parent.is_none());
             }
             _ => panic!("expected Comment Add"),
+        }
+    }
+
+    #[test]
+    fn comment_add_with_parent_parses() {
+        let cli = parse(&[
+            "lin",
+            "comment",
+            "add",
+            "ENG-1",
+            "nested reply",
+            "--parent",
+            "parent-uuid",
+        ]);
+        match cli.command {
+            Commands::Comment(CommentCommand::Add {
+                id, body, parent, ..
+            }) => {
+                assert_eq!(id, "ENG-1");
+                assert_eq!(body, "nested reply");
+                assert_eq!(parent.as_deref(), Some("parent-uuid"));
+            }
+            _ => panic!("expected Comment Add"),
+        }
+    }
+
+    #[test]
+    fn comment_add_parent_and_attachment() {
+        let cli = parse(&[
+            "lin",
+            "comment",
+            "add",
+            "ENG-1",
+            "reply with file",
+            "--parent",
+            "parent-uuid",
+            "--attachment",
+            "shot.png",
+        ]);
+        match cli.command {
+            Commands::Comment(CommentCommand::Add {
+                parent, attachment, ..
+            }) => {
+                assert_eq!(parent.as_deref(), Some("parent-uuid"));
+                assert_eq!(attachment.as_deref(), Some("shot.png"));
+            }
+            _ => panic!("expected Comment Add"),
+        }
+    }
+
+    #[test]
+    fn comment_reply_parses() {
+        let cli = parse(&["lin", "comment", "reply", "parent-uuid", "reply body"]);
+        match cli.command {
+            Commands::Comment(CommentCommand::Reply {
+                id,
+                body,
+                attachment,
+            }) => {
+                assert_eq!(id, "parent-uuid");
+                assert_eq!(body, "reply body");
+                assert!(attachment.is_none());
+            }
+            _ => panic!("expected Comment Reply"),
+        }
+    }
+
+    #[test]
+    fn comment_reply_with_attachment() {
+        let cli = parse(&[
+            "lin",
+            "comment",
+            "reply",
+            "parent-uuid",
+            "reply body",
+            "--attachment",
+            "shot.png",
+        ]);
+        match cli.command {
+            Commands::Comment(CommentCommand::Reply { attachment, .. }) => {
+                assert_eq!(attachment.as_deref(), Some("shot.png"));
+            }
+            _ => panic!("expected Comment Reply"),
         }
     }
 
