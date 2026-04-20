@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - `--label` flag now finds all workspace labels by paginating through the Linear API instead of only checking the first page
+- `cycle show` no longer panics when an issue title contains a multi-byte UTF-8 character (e.g. em dash) at the truncation boundary
 
 ## [0.7.0] - 2026-04-01
 
