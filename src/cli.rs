@@ -499,6 +499,14 @@ pub enum ProjectCommand {
         /// Project description
         #[arg(long)]
         description: Option<String>,
+
+        /// Start date (YYYY-MM-DD or relative like 3d, 1w)
+        #[arg(long)]
+        start: Option<String>,
+
+        /// Target/end date (YYYY-MM-DD or relative like 3d, 1w)
+        #[arg(long, alias = "end")]
+        target: Option<String>,
     },
     /// Edit a project
     Edit {
@@ -520,6 +528,14 @@ pub enum ProjectCommand {
         /// New state (e.g., planned, started, paused, completed, canceled)
         #[arg(long)]
         state: Option<String>,
+
+        /// New start date (YYYY-MM-DD or relative like 3d, 1w)
+        #[arg(long)]
+        start: Option<String>,
+
+        /// New target/end date (YYYY-MM-DD or relative like 3d, 1w)
+        #[arg(long, alias = "end")]
+        target: Option<String>,
     },
     /// Manage project updates
     #[command(subcommand)]
@@ -1379,6 +1395,78 @@ mod tests {
                 assert!(content);
             }
             _ => panic!("expected Project View"),
+        }
+    }
+
+    #[test]
+    fn project_create_with_dates() {
+        let cli = parse(&[
+            "lin",
+            "project",
+            "create",
+            "March 2026",
+            "--teams",
+            "eng",
+            "--start",
+            "2026-03-01",
+            "--target",
+            "2026-03-31",
+        ]);
+        match cli.command {
+            Commands::Project(ProjectCommand::Create {
+                name,
+                start,
+                target,
+                ..
+            }) => {
+                assert_eq!(name, "March 2026");
+                assert_eq!(start.as_deref(), Some("2026-03-01"));
+                assert_eq!(target.as_deref(), Some("2026-03-31"));
+            }
+            _ => panic!("expected Project Create"),
+        }
+    }
+
+    #[test]
+    fn project_edit_with_dates() {
+        let cli = parse(&[
+            "lin",
+            "project",
+            "edit",
+            "March 2026",
+            "--start",
+            "2026-03-01",
+            "--target",
+            "2026-03-31",
+        ]);
+        match cli.command {
+            Commands::Project(ProjectCommand::Edit {
+                id, start, target, ..
+            }) => {
+                assert_eq!(id, "March 2026");
+                assert_eq!(start.as_deref(), Some("2026-03-01"));
+                assert_eq!(target.as_deref(), Some("2026-03-31"));
+            }
+            _ => panic!("expected Project Edit"),
+        }
+    }
+
+    #[test]
+    fn project_edit_end_alias() {
+        let cli = parse(&[
+            "lin",
+            "project",
+            "edit",
+            "March 2026",
+            "--end",
+            "2026-03-31",
+        ]);
+        match cli.command {
+            Commands::Project(ProjectCommand::Edit { id, target, .. }) => {
+                assert_eq!(id, "March 2026");
+                assert_eq!(target.as_deref(), Some("2026-03-31"));
+            }
+            _ => panic!("expected Project Edit"),
         }
     }
 

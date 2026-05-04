@@ -5,6 +5,7 @@ use crate::api::client::LinearClient;
 use crate::api::queries::*;
 use crate::api::resolve;
 use crate::api::types::*;
+use crate::date;
 use crate::output;
 
 pub async fn list(
@@ -109,6 +110,8 @@ pub async fn create(
     name: &str,
     teams: &[String],
     description: Option<&str>,
+    start: Option<&str>,
+    target: Option<&str>,
 ) -> Result<()> {
     let mut resolved_team_ids = Vec::new();
     for t in teams {
@@ -122,6 +125,12 @@ pub async fn create(
 
     if let Some(desc) = description {
         input["description"] = json!(desc);
+    }
+    if let Some(s) = start {
+        input["startDate"] = json!(date::parse_date_only(s)?);
+    }
+    if let Some(t) = target {
+        input["targetDate"] = json!(date::parse_date_only(t)?);
     }
 
     let data: ProjectCreateData = client
@@ -139,6 +148,7 @@ pub async fn create(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn edit(
     client: &LinearClient,
     id: &str,
@@ -146,6 +156,8 @@ pub async fn edit(
     description: Option<&str>,
     content: Option<&str>,
     state: Option<&str>,
+    start: Option<&str>,
+    target: Option<&str>,
 ) -> Result<()> {
     let id = resolve::resolve_project_identifier(client, id).await?;
     let mut input = json!({});
@@ -160,6 +172,12 @@ pub async fn edit(
     }
     if let Some(s) = state {
         input["state"] = json!(s);
+    }
+    if let Some(s) = start {
+        input["startDate"] = json!(date::parse_date_only(s)?);
+    }
+    if let Some(t) = target {
+        input["targetDate"] = json!(date::parse_date_only(t)?);
     }
 
     let data: ProjectUpdateMutationData = client

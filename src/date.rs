@@ -69,6 +69,16 @@ pub fn parse_date(input: &str) -> Result<String> {
     )
 }
 
+/// Parses a date string and returns it as YYYY-MM-DD (TimelessDate).
+///
+/// Accepts the same inputs as [`parse_date`] but discards the time portion.
+/// Use this for Linear API fields typed as `TimelessDate` (e.g., project
+/// `startDate` / `targetDate`).
+pub fn parse_date_only(input: &str) -> Result<String> {
+    let full = parse_date(input)?;
+    Ok(full[..10].to_string())
+}
+
 /// Adds a relative duration (e.g., "1w", "10d") to an ISO 8601 date string.
 pub fn add_duration_to_date(date_str: &str, duration_str: &str) -> Result<String> {
     let duration = parse_relative(duration_str).ok_or_else(|| {
@@ -184,5 +194,31 @@ mod tests {
     #[test]
     fn add_duration_invalid() {
         assert!(add_duration_to_date("2026-04-01", "abc").is_err());
+    }
+
+    #[test]
+    fn parse_date_only_iso() {
+        assert_eq!(parse_date_only("2026-03-24").unwrap(), "2026-03-24");
+    }
+
+    #[test]
+    fn parse_date_only_iso_datetime() {
+        assert_eq!(
+            parse_date_only("2026-03-24T10:30:00Z").unwrap(),
+            "2026-03-24"
+        );
+    }
+
+    #[test]
+    fn parse_date_only_relative() {
+        let result = parse_date_only("3d").unwrap();
+        assert_eq!(result.len(), 10);
+        assert_eq!(result.chars().nth(4), Some('-'));
+        assert_eq!(result.chars().nth(7), Some('-'));
+    }
+
+    #[test]
+    fn parse_date_only_invalid() {
+        assert!(parse_date_only("not-a-date").is_err());
     }
 }
