@@ -329,9 +329,18 @@ async fn run(cli: Cli) -> Result<()> {
                     name,
                     teams,
                     description,
+                    start,
+                    target,
                 } => {
-                    commands::project::create(&ctx.client, &name, &teams, description.as_deref())
-                        .await?;
+                    commands::project::create(
+                        &ctx.client,
+                        &name,
+                        &teams,
+                        description.as_deref(),
+                        start.as_deref(),
+                        target.as_deref(),
+                    )
+                    .await?;
                 }
                 ProjectCommand::Edit {
                     id,
@@ -339,6 +348,8 @@ async fn run(cli: Cli) -> Result<()> {
                     description,
                     content,
                     state,
+                    start,
+                    target,
                 } => {
                     commands::project::edit(
                         &ctx.client,
@@ -347,6 +358,8 @@ async fn run(cli: Cli) -> Result<()> {
                         description.as_deref(),
                         content.as_deref(),
                         state.as_deref(),
+                        start.as_deref(),
+                        target.as_deref(),
                     )
                     .await?;
                 }
