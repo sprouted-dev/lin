@@ -62,6 +62,7 @@ pub const ISSUES_QUERY: &str = r#"
                 state { id name type }
                 assignee { id name displayName }
                 team { id name key }
+                cycle { id number name }
             }
         }
     }
