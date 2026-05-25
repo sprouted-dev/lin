@@ -81,6 +81,7 @@ pub async fn create(
 pub async fn edit(
     client: &LinearClient,
     label: &str,
+    team: Option<&str>,
     name: Option<&str>,
     color: Option<&str>,
     description: Option<&str>,
@@ -90,7 +91,7 @@ pub async fn edit(
         bail!("Nothing to update. Provide at least one of --name, --color, --description, --parent-id");
     }
 
-    let label_id = resolve::resolve_label_identifier(client, label).await?;
+    let label_id = resolve::resolve_label_identifier(client, label, team).await?;
     let mut input = json!({});
 
     if let Some(n) = name {
@@ -124,8 +125,8 @@ pub async fn edit(
     Ok(())
 }
 
-pub async fn delete(client: &LinearClient, label: &str) -> Result<()> {
-    let label_id = resolve::resolve_label_identifier(client, label).await?;
+pub async fn delete(client: &LinearClient, label: &str, team: Option<&str>) -> Result<()> {
+    let label_id = resolve::resolve_label_identifier(client, label, team).await?;
 
     let data: LabelDeleteData = client
         .execute(LABEL_DELETE_MUTATION, Some(json!({ "id": label_id })))

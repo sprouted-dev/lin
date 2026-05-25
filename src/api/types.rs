@@ -50,6 +50,14 @@ pub struct Label {
     pub id: String,
     pub name: String,
     pub color: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub team: Option<LabelTeam>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct LabelTeam {
+    pub key: Option<String>,
+    pub name: String,
 }
 
 // --- WorkflowState ---

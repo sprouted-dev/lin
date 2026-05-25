@@ -437,6 +437,7 @@ async fn run(cli: Cli) -> Result<()> {
                 }
                 LabelCommand::Edit {
                     label,
+                    team,
                     name,
                     color,
                     description,
@@ -445,6 +446,7 @@ async fn run(cli: Cli) -> Result<()> {
                     commands::label::edit(
                         &ctx.client,
                         &label,
+                        team.as_deref(),
                         name.as_deref(),
                         color.as_deref(),
                         description.as_deref(),
@@ -452,8 +454,8 @@ async fn run(cli: Cli) -> Result<()> {
                     )
                     .await?;
                 }
-                LabelCommand::Delete { label } => {
-                    commands::label::delete(&ctx.client, &label).await?;
+                LabelCommand::Delete { label, team } => {
+                    commands::label::delete(&ctx.client, &label, team.as_deref()).await?;
                 }
             }
         }

@@ -630,6 +630,10 @@ pub enum LabelCommand {
         /// Label name or UUID
         label: String,
 
+        /// Scope the label lookup to a team (name, key, or UUID) to disambiguate names
+        #[arg(long)]
+        team: Option<String>,
+
         /// New label name
         #[arg(long)]
         name: Option<String>,
@@ -650,6 +654,10 @@ pub enum LabelCommand {
     Delete {
         /// Label name or UUID
         label: String,
+
+        /// Scope the label lookup to a team (name, key, or UUID) to disambiguate names
+        #[arg(long)]
+        team: Option<String>,
     },
 }
 

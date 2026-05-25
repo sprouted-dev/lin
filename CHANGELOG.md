@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `label edit <name|uuid>` command with `--name`, `--color`, `--description`, and `--parent-id` flags for updating a label via Linear's `issueLabelUpdate` mutation
 - `label delete <name|uuid>` command for removing a label via Linear's `issueLabelDelete` mutation
+- `label edit`/`label delete` resolve an ambiguous label name (the same name used across multiple teams) by erroring with the list of teams instead of mutating an arbitrary match; pass `--team <name|key|uuid>` to scope the lookup to one team
 - `cycle edit` command with `--name`, `--description`, `--starts`, and `--ends` flags for updating cycle properties
 - `lin download <URL>` command to download files directly from `uploads.linear.app` URLs without needing the parent issue
 - `comment add --parent <comment-id>` and `issue comment --parent <comment-id>` flags to nest a reply under an existing comment via Linear's `commentCreate` `parentId` input

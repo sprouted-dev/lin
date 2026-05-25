@@ -327,6 +327,10 @@ pub const LABELS_QUERY: &str = r#"
                 id
                 name
                 color
+                team {
+                    key
+                    name
+                }
             }
             pageInfo {
                 hasNextPage
