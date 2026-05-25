@@ -439,6 +439,18 @@ pub struct LabelCreateData {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct LabelUpdateData {
+    pub issue_label_update: LabelPayload,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LabelDeleteData {
+    pub issue_label_delete: DeletePayload,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LabelPayload {
     pub success: bool,
     pub issue_label: Option<Label>,

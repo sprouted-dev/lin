@@ -349,6 +349,27 @@ pub const LABEL_CREATE_MUTATION: &str = r#"
     }
 "#;
 
+pub const LABEL_UPDATE_MUTATION: &str = r#"
+    mutation IssueLabelUpdate($id: String!, $input: IssueLabelUpdateInput!) {
+        issueLabelUpdate(id: $id, input: $input) {
+            success
+            issueLabel {
+                id
+                name
+                color
+            }
+        }
+    }
+"#;
+
+pub const LABEL_DELETE_MUTATION: &str = r#"
+    mutation IssueLabelDelete($id: String!) {
+        issueLabelDelete(id: $id) {
+            success
+        }
+    }
+"#;
+
 // --- File Attachments ---
 
 pub const FILE_UPLOAD_MUTATION: &str = r#"

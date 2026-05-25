@@ -244,6 +244,17 @@ pub async fn resolve_cycle_identifier(
     }
 }
 
+/// Resolve a single label identifier (name or UUID) to a UUID.
+/// If already a UUID, returns as-is.
+pub async fn resolve_label_identifier(client: &LinearClient, identifier: &str) -> Result<String> {
+    if is_uuid(identifier) {
+        return Ok(identifier.to_string());
+    }
+
+    let ids = resolve_label_names(client, std::slice::from_ref(&identifier.to_string())).await?;
+    Ok(ids.into_iter().next().expect("resolved one label id"))
+}
+
 /// Resolve label names to label IDs via case-insensitive matching.
 /// Paginates through all workspace labels to avoid missing any.
 pub async fn resolve_label_names(client: &LinearClient, names: &[String]) -> Result<Vec<String>> {

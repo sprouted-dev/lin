@@ -625,6 +625,32 @@ pub enum LabelCommand {
         #[arg(long)]
         parent_id: Option<String>,
     },
+    /// Edit a label
+    Edit {
+        /// Label name or UUID
+        label: String,
+
+        /// New label name
+        #[arg(long)]
+        name: Option<String>,
+
+        /// Label color (hex, e.g., #ff0000)
+        #[arg(long)]
+        color: Option<String>,
+
+        /// Label description
+        #[arg(long)]
+        description: Option<String>,
+
+        /// Parent label ID
+        #[arg(long)]
+        parent_id: Option<String>,
+    },
+    /// Delete a label
+    Delete {
+        /// Label name or UUID
+        label: String,
+    },
 }
 
 #[derive(Subcommand)]
