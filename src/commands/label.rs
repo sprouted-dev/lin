@@ -88,7 +88,9 @@ pub async fn edit(
     parent_id: Option<&str>,
 ) -> Result<()> {
     if name.is_none() && color.is_none() && description.is_none() && parent_id.is_none() {
-        bail!("Nothing to update. Provide at least one of --name, --color, --description, --parent-id");
+        bail!(
+            "Nothing to update. Provide at least one of --name, --color, --description, --parent-id"
+        );
     }
 
     let label_id = resolve::resolve_label_identifier(client, label, team).await?;
