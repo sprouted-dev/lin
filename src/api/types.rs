@@ -159,6 +159,37 @@ pub struct IssueUpdateData {
     pub issue_update: IssuePayload,
 }
 
+// --- Issue relations ---
+
+#[derive(Debug, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct IssueRelationCreateInput {
+    pub issue_id: String,
+    pub related_issue_id: String,
+    #[serde(rename = "type")]
+    pub relation_type: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IssueRelationCreateData {
+    pub issue_relation_create: IssueRelationPayload,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IssueRelationPayload {
+    pub success: bool,
+    pub issue_relation: Option<IssueRelation>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct IssueRelation {
+    pub id: String,
+    #[serde(rename = "type")]
+    pub relation_type: String,
+}
+
 // --- Workflow states ---
 
 #[derive(Debug, Deserialize)]

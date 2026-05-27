@@ -843,6 +843,63 @@ pub async fn state(
     Ok(())
 }
 
+/// Create a relation (blocks / duplicate / related) from `id` to `related`.
+/// `relation_type` is the Linear API enum value ("blocks", "duplicate", "related").
+pub async fn relation(
+    client: &LinearClient,
+    id: &str,
+    relation_type: &str,
+    related: &str,
+    json: bool,
+) -> Result<()> {
+    let issue_id = resolve::resolve_issue_identifier(client, id).await?;
+    let related_issue_id = resolve::resolve_issue_identifier(client, related).await?;
+
+    let input = IssueRelationCreateInput {
+        issue_id,
+        related_issue_id,
+        relation_type: relation_type.to_string(),
+    };
+
+    let data: IssueRelationCreateData = client
+        .execute(
+            ISSUE_RELATION_CREATE_MUTATION,
+            Some(json!({ "input": input })),
+        )
+        .await?;
+
+    if !data.issue_relation_create.success {
+        bail!("Failed to create issue relation");
+    }
+
+    if json {
+        match data.issue_relation_create.issue_relation.as_ref() {
+            Some(rel) => output::print_json(&json!({
+                "success": true,
+                "relation": { "id": rel.id, "type": rel.relation_type },
+                "issue": id,
+                "relatedIssue": related,
+            })),
+            None => output::print_json(&json!({
+                "success": true,
+                "issue": id,
+                "relatedIssue": related,
+            })),
+        }
+        return Ok(());
+    }
+
+    let summary = match relation_type {
+        "blocks" => format!("{} now blocks {}", id, related),
+        "duplicate" => format!("{} marked as a duplicate of {}", id, related),
+        "related" => format!("{} now relates to {}", id, related),
+        other => format!("{} linked to {} ({})", id, related, other),
+    };
+    output::print_success(&summary);
+
+    Ok(())
+}
+
 pub async fn attachment_add(
     client: &LinearClient,
     id: &str,

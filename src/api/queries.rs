@@ -164,6 +164,20 @@ pub const COMMENT_UPDATE_MUTATION: &str = r#"
     }
 "#;
 
+// --- Issue relations ---
+
+pub const ISSUE_RELATION_CREATE_MUTATION: &str = r#"
+    mutation IssueRelationCreate($input: IssueRelationCreateInput!) {
+        issueRelationCreate(input: $input) {
+            success
+            issueRelation {
+                id
+                type
+            }
+        }
+    }
+"#;
+
 // --- Projects ---
 
 pub const PROJECTS_QUERY: &str = r#"

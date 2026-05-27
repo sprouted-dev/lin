@@ -76,6 +76,9 @@ lin issue attachments list ENG-123
 lin issue attachments add ENG-123 screenshot.png
 lin issue attachments download ENG-123 -o /tmp/
 lin issue attachments download ENG-123 --attachment-id f17b -o /tmp/
+lin issue relation ENG-123 duplicate ENG-456   # ENG-123 is a duplicate of ENG-456
+lin issue relation ENG-123 blocks ENG-456      # ENG-123 blocks ENG-456
+lin issue relation ENG-123 related ENG-456     # ENG-123 relates to ENG-456
 ```
 
 ### Comments
