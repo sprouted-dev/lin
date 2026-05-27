@@ -276,14 +276,8 @@ async fn run(cli: Cli) -> Result<()> {
                     relation_type,
                     related,
                 } => {
-                    commands::issue::relation(
-                        &ctx.client,
-                        &id,
-                        relation_type.as_api_str(),
-                        &related,
-                        ctx.json,
-                    )
-                    .await?;
+                    commands::issue::relation(&ctx.client, &id, relation_type, &related, ctx.json)
+                        .await?;
                 }
             }
         }

@@ -161,7 +161,7 @@ pub struct IssueUpdateData {
 
 // --- Issue relations ---
 
-#[derive(Debug, Serialize, Default)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IssueRelationCreateInput {
     pub issue_id: String,

@@ -402,6 +402,15 @@ impl RelationType {
             RelationType::Related => "related",
         }
     }
+
+    /// Human-readable summary of the created relation, for the success message.
+    pub fn summary(self, id: &str, related: &str) -> String {
+        match self {
+            RelationType::Blocks => format!("{id} now blocks {related}"),
+            RelationType::Duplicate => format!("{id} marked as a duplicate of {related}"),
+            RelationType::Related => format!("{id} now relates to {related}"),
+        }
+    }
 }
 
 #[derive(Subcommand)]
@@ -1736,5 +1745,17 @@ mod tests {
         assert_eq!(RelationType::Blocks.as_api_str(), "blocks");
         assert_eq!(RelationType::Duplicate.as_api_str(), "duplicate");
         assert_eq!(RelationType::Related.as_api_str(), "related");
+    }
+
+    #[test]
+    fn relation_type_summary_reads_naturally() {
+        assert_eq!(
+            RelationType::Duplicate.summary("PLO-326", "PLO-351"),
+            "PLO-326 marked as a duplicate of PLO-351"
+        );
+        assert_eq!(
+            RelationType::Blocks.summary("A-1", "A-2"),
+            "A-1 now blocks A-2"
+        );
     }
 }

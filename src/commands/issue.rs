@@ -6,6 +6,7 @@ use crate::api::queries::*;
 use crate::api::resolve;
 use crate::api::types::*;
 use crate::api::upload;
+use crate::cli::RelationType;
 use crate::date;
 use crate::output;
 
@@ -844,11 +845,10 @@ pub async fn state(
 }
 
 /// Create a relation (blocks / duplicate / related) from `id` to `related`.
-/// `relation_type` is the Linear API enum value ("blocks", "duplicate", "related").
 pub async fn relation(
     client: &LinearClient,
     id: &str,
-    relation_type: &str,
+    relation_type: RelationType,
     related: &str,
     json: bool,
 ) -> Result<()> {
@@ -858,7 +858,7 @@ pub async fn relation(
     let input = IssueRelationCreateInput {
         issue_id,
         related_issue_id,
-        relation_type: relation_type.to_string(),
+        relation_type: relation_type.as_api_str().to_string(),
     };
 
     let data: IssueRelationCreateData = client
@@ -869,7 +869,12 @@ pub async fn relation(
         .await?;
 
     if !data.issue_relation_create.success {
-        bail!("Failed to create issue relation");
+        bail!(
+            "Failed to create {} relation between {} and {}",
+            relation_type.as_api_str(),
+            id,
+            related
+        );
     }
 
     if json {
@@ -889,13 +894,7 @@ pub async fn relation(
         return Ok(());
     }
 
-    let summary = match relation_type {
-        "blocks" => format!("{} now blocks {}", id, related),
-        "duplicate" => format!("{} marked as a duplicate of {}", id, related),
-        "related" => format!("{} now relates to {}", id, related),
-        other => format!("{} linked to {} ({})", id, related, other),
-    };
-    output::print_success(&summary);
+    output::print_success(&relation_type.summary(id, related));
 
     Ok(())
 }
