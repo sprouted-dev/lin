@@ -367,6 +367,50 @@ pub enum IssueCommand {
         #[arg(long)]
         parent: Option<String>,
     },
+    /// Link two issues with a relation (blocks, duplicate, or related)
+    Relation {
+        /// Issue identifier (e.g., ENG-123) or UUID
+        id: String,
+
+        /// Relation type: how `id` relates to `related`
+        relation_type: RelationType,
+
+        /// The related/target issue identifier (e.g., ENG-456) or UUID
+        related: String,
+    },
+}
+
+/// How one issue relates to another (`lin issue relation`).
+/// Values map to Linear's `IssueRelationType` GraphQL enum.
+#[derive(clap::ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+#[value(rename_all = "lowercase")]
+pub enum RelationType {
+    /// `id` blocks `related`
+    Blocks,
+    /// `id` is a duplicate of `related`
+    Duplicate,
+    /// `id` is related to `related`
+    Related,
+}
+
+impl RelationType {
+    /// The Linear API enum value for this relation type.
+    pub fn as_api_str(self) -> &'static str {
+        match self {
+            RelationType::Blocks => "blocks",
+            RelationType::Duplicate => "duplicate",
+            RelationType::Related => "related",
+        }
+    }
+
+    /// Human-readable summary of the created relation, for the success message.
+    pub fn summary(self, id: &str, related: &str) -> String {
+        match self {
+            RelationType::Blocks => format!("{id} now blocks {related}"),
+            RelationType::Duplicate => format!("{id} marked as a duplicate of {related}"),
+            RelationType::Related => format!("{id} now relates to {related}"),
+        }
+    }
 }
 
 #[derive(Subcommand)]
@@ -1653,5 +1697,65 @@ mod tests {
             }
             _ => panic!("expected Download"),
         }
+    }
+
+    #[test]
+    fn issue_relation_duplicate_parses() {
+        let cli = parse(&[
+            "lin",
+            "issue",
+            "relation",
+            "PLO-326",
+            "duplicate",
+            "PLO-351",
+        ]);
+        match cli.command {
+            Commands::Issue(IssueCommand::Relation {
+                id,
+                relation_type,
+                related,
+            }) => {
+                assert_eq!(id, "PLO-326");
+                assert_eq!(relation_type, RelationType::Duplicate);
+                assert_eq!(related, "PLO-351");
+            }
+            _ => panic!("expected Issue Relation"),
+        }
+    }
+
+    #[test]
+    fn issue_relation_blocks_parses() {
+        let cli = parse(&["lin", "issue", "relation", "APP-12", "blocks", "APP-15"]);
+        match cli.command {
+            Commands::Issue(IssueCommand::Relation { relation_type, .. }) => {
+                assert_eq!(relation_type, RelationType::Blocks);
+            }
+            _ => panic!("expected Issue Relation"),
+        }
+    }
+
+    #[test]
+    fn issue_relation_rejects_unknown_type() {
+        let result = Cli::try_parse_from(["lin", "issue", "relation", "A-1", "mirrors", "A-2"]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn relation_type_api_str_matches_linear_enum() {
+        assert_eq!(RelationType::Blocks.as_api_str(), "blocks");
+        assert_eq!(RelationType::Duplicate.as_api_str(), "duplicate");
+        assert_eq!(RelationType::Related.as_api_str(), "related");
+    }
+
+    #[test]
+    fn relation_type_summary_reads_naturally() {
+        assert_eq!(
+            RelationType::Duplicate.summary("PLO-326", "PLO-351"),
+            "PLO-326 marked as a duplicate of PLO-351"
+        );
+        assert_eq!(
+            RelationType::Blocks.summary("A-1", "A-2"),
+            "A-1 now blocks A-2"
+        );
     }
 }

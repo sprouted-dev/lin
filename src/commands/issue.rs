@@ -6,6 +6,7 @@ use crate::api::queries::*;
 use crate::api::resolve;
 use crate::api::types::*;
 use crate::api::upload;
+use crate::cli::RelationType;
 use crate::date;
 use crate::output;
 
@@ -839,6 +840,61 @@ pub async fn state(
             ));
         }
     }
+
+    Ok(())
+}
+
+/// Create a relation (blocks / duplicate / related) from `id` to `related`.
+pub async fn relation(
+    client: &LinearClient,
+    id: &str,
+    relation_type: RelationType,
+    related: &str,
+    json: bool,
+) -> Result<()> {
+    let issue_id = resolve::resolve_issue_identifier(client, id).await?;
+    let related_issue_id = resolve::resolve_issue_identifier(client, related).await?;
+
+    let input = IssueRelationCreateInput {
+        issue_id,
+        related_issue_id,
+        relation_type: relation_type.as_api_str().to_string(),
+    };
+
+    let data: IssueRelationCreateData = client
+        .execute(
+            ISSUE_RELATION_CREATE_MUTATION,
+            Some(json!({ "input": input })),
+        )
+        .await?;
+
+    if !data.issue_relation_create.success {
+        bail!(
+            "Failed to create {} relation between {} and {}",
+            relation_type.as_api_str(),
+            id,
+            related
+        );
+    }
+
+    if json {
+        match data.issue_relation_create.issue_relation.as_ref() {
+            Some(rel) => output::print_json(&json!({
+                "success": true,
+                "relation": { "id": rel.id, "type": rel.relation_type },
+                "issue": id,
+                "relatedIssue": related,
+            })),
+            None => output::print_json(&json!({
+                "success": true,
+                "issue": id,
+                "relatedIssue": related,
+            })),
+        }
+        return Ok(());
+    }
+
+    output::print_success(&relation_type.summary(id, related));
 
     Ok(())
 }

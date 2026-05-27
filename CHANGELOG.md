@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `comment reply <comment-id> <body>` subcommand that looks up the parent comment's issue automatically, so replies only need the parent comment UUID
 - `project create` and `project edit` `--start` and `--target` (alias `--end`) flags for setting project start and target dates (accepts `YYYY-MM-DD` or relative shorthand like `3d`, `1w`)
 - `issue list` JSON output now includes the `cycle` field (id, number, name) for each issue
+- `issue relation <issue> <blocks|duplicate|related> <related>` command to link two issues via Linear's `issueRelationCreate` mutation; also unblocks setting the `Duplicate` workflow state, which Linear rejects unless a duplicate relation already exists (#46)
 
 ### Fixed
 - `--label` flag now finds all workspace labels by paginating through the Linear API instead of only checking the first page
