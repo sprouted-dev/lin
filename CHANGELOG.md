@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `issue relate <id> --to <id>` command to link two issues via Linear's `issueRelationCreate` mutation, with `--type blocks|blocked-by|related|duplicate` (default `related`); `blocked-by` is sugar for a `blocks` relation with the issues swapped
+- `issue relations <id>` command to list an issue's outgoing and incoming relations (including the relation IDs needed to remove them)
+- `issue unrelate <relation-id>` command to remove a relation via Linear's `issueRelationDelete` mutation
+- `lin gql <query>` command to run a raw GraphQL query or mutation against the Linear API; the document and `--variables` each accept a literal string, `@file`, or `-` for stdin
 - `label edit <name|uuid>` command with `--name`, `--color`, `--description`, and `--parent-id` flags for updating a label via Linear's `issueLabelUpdate` mutation
 - `label delete <name|uuid>` command for removing a label via Linear's `issueLabelDelete` mutation
 - `label edit`/`label delete` resolve an ambiguous label name (the same name used across multiple teams) by erroring with the list of teams instead of mutating an arbitrary match; pass `--team <name|key|uuid>` to scope the lookup to one team

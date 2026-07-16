@@ -167,6 +167,57 @@ pub struct IssueUpdateData {
     pub issue_update: IssuePayload,
 }
 
+// --- Issue relations ---
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IssueRelation {
+    pub id: String,
+    #[serde(rename = "type")]
+    pub relation_type: String,
+    pub issue: Option<RelationIssueRef>,
+    pub related_issue: Option<RelationIssueRef>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct RelationIssueRef {
+    pub identifier: String,
+    pub title: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IssueWithRelations {
+    pub identifier: String,
+    pub title: String,
+    pub relations: Connection<IssueRelation>,
+    pub inverse_relations: Connection<IssueRelation>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct IssueRelationsData {
+    pub issue: IssueWithRelations,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IssueRelationCreateData {
+    pub issue_relation_create: IssueRelationPayload,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IssueRelationPayload {
+    pub success: bool,
+    pub issue_relation: Option<IssueRelation>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IssueRelationDeleteData {
+    pub issue_relation_delete: DeletePayload,
+}
+
 // --- Workflow states ---
 
 #[derive(Debug, Deserialize)]

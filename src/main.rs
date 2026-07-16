@@ -271,6 +271,20 @@ async fn run(cli: Cli) -> Result<()> {
                     )
                     .await?;
                 }
+                IssueCommand::Relate {
+                    id,
+                    to,
+                    relation_type,
+                } => {
+                    let (source, target, api_type) = relation_type.resolve(&id, &to);
+                    commands::issue::relate(&ctx.client, source, target, api_type).await?;
+                }
+                IssueCommand::Relations { id } => {
+                    commands::issue::relations(&ctx.client, &id, ctx.json).await?;
+                }
+                IssueCommand::Unrelate { relation_id } => {
+                    commands::issue::unrelate(&ctx.client, &relation_id).await?;
+                }
             }
         }
 
@@ -531,6 +545,11 @@ async fn run(cli: Cli) -> Result<()> {
             let ws = workspace::resolve_workspace(ws_flag);
             let token = auth::get_token(&ws)?;
             commands::download::run(&token, &url, &output).await?;
+        }
+
+        Commands::Gql { query, variables } => {
+            let ctx = ensure_auth(ws_flag, json, verbose)?;
+            commands::gql::run(&ctx.client, &query, variables.as_deref()).await?;
         }
 
         Commands::Changelog => {

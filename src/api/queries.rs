@@ -99,6 +99,52 @@ pub const ISSUE_UPDATE_MUTATION: &str = r#"
     }
 "#;
 
+pub const ISSUE_RELATIONS_QUERY: &str = r#"
+    query IssueRelations($id: String!) {
+        issue(id: $id) {
+            id
+            identifier
+            title
+            relations {
+                nodes {
+                    id
+                    type
+                    relatedIssue { identifier title }
+                }
+            }
+            inverseRelations {
+                nodes {
+                    id
+                    type
+                    issue { identifier title }
+                }
+            }
+        }
+    }
+"#;
+
+pub const ISSUE_RELATION_CREATE_MUTATION: &str = r#"
+    mutation IssueRelationCreate($input: IssueRelationCreateInput!) {
+        issueRelationCreate(input: $input) {
+            success
+            issueRelation {
+                id
+                type
+                issue { identifier title }
+                relatedIssue { identifier title }
+            }
+        }
+    }
+"#;
+
+pub const ISSUE_RELATION_DELETE_MUTATION: &str = r#"
+    mutation IssueRelationDelete($id: String!) {
+        issueRelationDelete(id: $id) {
+            success
+        }
+    }
+"#;
+
 pub const TEAM_STATES_QUERY: &str = r#"
     query Team($id: String!) {
         team(id: $id) {
