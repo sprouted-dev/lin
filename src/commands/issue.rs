@@ -359,7 +359,6 @@ pub async fn edit(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
 /// Create a relation between two issues. `source`, `target`, and `api_type`
 /// are already resolved by the caller (see `RelationType::resolve`).
 pub async fn relate(
@@ -479,6 +478,7 @@ pub async fn unrelate(client: &LinearClient, relation_id: &str) -> Result<()> {
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn search(
     client: &LinearClient,
     query: &str,
