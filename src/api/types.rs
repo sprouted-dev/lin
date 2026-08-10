@@ -252,6 +252,8 @@ pub struct IssueCreateInput {
     pub parent_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cycle_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub due_date: Option<String>,
 }
 
 // --- Comment ---
@@ -609,6 +611,8 @@ pub struct IssueUpdateInput {
     pub parent_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cycle_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub due_date: Option<String>,
 }
 
 // --- Cycles ---

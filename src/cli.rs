@@ -171,6 +171,10 @@ pub enum IssueCommand {
         #[arg(long)]
         cycle: Option<String>,
 
+        /// Due date (YYYY-MM-DD, or relative like 3d, 1w counting forward from today)
+        #[arg(long, alias = "due")]
+        due_date: Option<String>,
+
         /// Attach a file to the created issue
         #[arg(long)]
         attachment: Option<String>,
@@ -223,6 +227,10 @@ pub enum IssueCommand {
         /// Cycle (name, number, or "current"; requires --team)
         #[arg(long)]
         cycle: Option<String>,
+
+        /// New due date (YYYY-MM-DD, or relative like 3d, 1w counting forward from today)
+        #[arg(long, alias = "due")]
+        due_date: Option<String>,
 
         /// Attach a file to the issue
         #[arg(long)]
@@ -1713,6 +1721,56 @@ mod tests {
         match cli.command {
             Commands::Issue(IssueCommand::Edit { cycle, .. }) => {
                 assert_eq!(cycle.as_deref(), Some("42"));
+            }
+            _ => panic!("expected Issue Edit"),
+        }
+    }
+
+    #[test]
+    fn issue_create_with_due_date() {
+        let cli = parse(&[
+            "lin",
+            "issue",
+            "create",
+            "Test issue",
+            "--team",
+            "eng",
+            "--due-date",
+            "2026-09-30",
+        ]);
+        match cli.command {
+            Commands::Issue(IssueCommand::Create { due_date, .. }) => {
+                assert_eq!(due_date.as_deref(), Some("2026-09-30"));
+            }
+            _ => panic!("expected Issue Create"),
+        }
+    }
+
+    #[test]
+    fn issue_edit_with_due_date() {
+        let cli = parse(&[
+            "lin",
+            "issue",
+            "edit",
+            "APP-1419",
+            "--due-date",
+            "2026-09-30",
+        ]);
+        match cli.command {
+            Commands::Issue(IssueCommand::Edit { id, due_date, .. }) => {
+                assert_eq!(id, "APP-1419");
+                assert_eq!(due_date.as_deref(), Some("2026-09-30"));
+            }
+            _ => panic!("expected Issue Edit"),
+        }
+    }
+
+    #[test]
+    fn issue_edit_due_alias() {
+        let cli = parse(&["lin", "issue", "edit", "APP-1419", "--due", "1w"]);
+        match cli.command {
+            Commands::Issue(IssueCommand::Edit { due_date, .. }) => {
+                assert_eq!(due_date.as_deref(), Some("1w"));
             }
             _ => panic!("expected Issue Edit"),
         }

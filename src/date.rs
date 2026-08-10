@@ -79,6 +79,23 @@ pub fn parse_date_only(input: &str) -> Result<String> {
     Ok(full[..10].to_string())
 }
 
+/// Parses a *deadline* date string and returns it as YYYY-MM-DD (TimelessDate).
+///
+/// Same inputs as [`parse_date_only`], except relative shorthand counts
+/// **forward** from now: `1w` is a week from today, not a week ago. Use this
+/// for fields that name a future date (e.g. issue `dueDate`); use
+/// [`parse_date_only`] for fields that record something already past.
+pub fn parse_future_date_only(input: &str) -> Result<String> {
+    let input = input.trim();
+
+    if let Some(duration) = parse_relative(input) {
+        let target = OffsetDateTime::now_utc() + duration;
+        return Ok(target.format(&Rfc3339)?[..10].to_string());
+    }
+
+    parse_date_only(input)
+}
+
 /// Adds a relative duration (e.g., "1w", "10d") to an ISO 8601 date string.
 pub fn add_duration_to_date(date_str: &str, duration_str: &str) -> Result<String> {
     let duration = parse_relative(duration_str).ok_or_else(|| {
@@ -220,5 +237,24 @@ mod tests {
     #[test]
     fn parse_date_only_invalid() {
         assert!(parse_date_only("not-a-date").is_err());
+    }
+
+    #[test]
+    fn future_date_only_iso_is_verbatim() {
+        assert_eq!(parse_future_date_only("2026-09-30").unwrap(), "2026-09-30");
+    }
+
+    #[test]
+    fn future_date_only_relative_counts_forward() {
+        let today = OffsetDateTime::now_utc().format(&Rfc3339).unwrap()[..10].to_string();
+        let future = parse_future_date_only("1w").unwrap();
+        let past = parse_date_only("1w").unwrap();
+        assert!(future > today, "{} should be after {}", future, today);
+        assert!(past < today, "{} should be before {}", past, today);
+    }
+
+    #[test]
+    fn future_date_only_invalid() {
+        assert!(parse_future_date_only("not-a-date").is_err());
     }
 }

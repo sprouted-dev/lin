@@ -148,6 +148,7 @@ pub async fn create(
     labels: Option<&[String]>,
     parent: Option<&str>,
     cycle: Option<&str>,
+    due_date: Option<&str>,
     attachment_path: Option<&str>,
 ) -> Result<()> {
     let team_id = resolve::resolve_team_identifier(client, team).await?;
@@ -187,6 +188,10 @@ pub async fn create(
     // Resolve cycle
     if let Some(cyc) = cycle {
         input.cycle_id = Some(resolve::resolve_cycle_identifier(client, &team_id, cyc).await?);
+    }
+
+    if let Some(due) = due_date {
+        input.due_date = Some(date::parse_future_date_only(due)?);
     }
 
     let data: IssueCreateData = client
@@ -233,6 +238,7 @@ pub async fn edit(
     remove_labels: Option<Vec<String>>,
     parent: Option<String>,
     cycle: Option<String>,
+    due_date: Option<String>,
     attachment_path: Option<String>,
 ) -> Result<()> {
     // Resolve label names — fetch issue if labels or cycle need it
@@ -318,6 +324,11 @@ pub async fn edit(
         None => None,
     };
 
+    let resolved_due_date = match due_date {
+        Some(ref d) => Some(date::parse_future_date_only(d)?),
+        None => None,
+    };
+
     let input = IssueUpdateInput {
         title,
         description,
@@ -328,6 +339,7 @@ pub async fn edit(
         label_ids: final_label_ids,
         parent_id: resolved_parent,
         cycle_id: resolved_cycle,
+        due_date: resolved_due_date,
     };
 
     let data: IssueUpdateData = client

@@ -86,6 +86,7 @@ async fn run(cli: Cli) -> Result<()> {
                     labels,
                     parent,
                     cycle,
+                    due_date,
                     attachment,
                 } => {
                     commands::issue::create(
@@ -100,6 +101,7 @@ async fn run(cli: Cli) -> Result<()> {
                         labels.as_deref(),
                         parent.as_deref(),
                         cycle.as_deref(),
+                        due_date.as_deref(),
                         attachment.as_deref(),
                     )
                     .await?;
@@ -117,6 +119,7 @@ async fn run(cli: Cli) -> Result<()> {
                     remove_labels,
                     parent,
                     cycle,
+                    due_date,
                     attachment,
                     comment,
                 } => {
@@ -134,6 +137,7 @@ async fn run(cli: Cli) -> Result<()> {
                         remove_labels,
                         parent,
                         cycle,
+                        due_date,
                         attachment,
                     )
                     .await?;

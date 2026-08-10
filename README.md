@@ -67,8 +67,11 @@ lin issue me --status "Todo"
 lin issue create "Fix login" --team APP
 lin issue create "Fix login" --team APP --assignee me --priority 2
 lin issue create "Sprint task" --team APP --cycle current
+lin issue create "Ship v2" --team APP --due-date 2026-09-30
 lin issue edit ENG-123 --state "In Progress"
 lin issue edit ENG-123 --cycle 42
+lin issue edit ENG-123 --due-date 2026-09-30
+lin issue edit ENG-123 --due 1w              # one week from today
 lin issue state ENG-123
 lin issue state ENG-123 "Done"
 lin issue state ENG-123 --list
