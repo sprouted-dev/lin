@@ -26,5 +26,5 @@ keyring = { version = "3", features = ["apple-native", "linux-native"] }
 thiserror = "2"
 anyhow = "1"
 colored = "3"
-time = { version = "0.3", features = ["formatting", "parsing"] }
+time = { version = "0.3", features = ["formatting", "parsing", "local-offset"] }
 dirs = "6"
