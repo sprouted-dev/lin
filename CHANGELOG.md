@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-08-10
+
 ### Added
 - `issue relate <id> --to <id>` command to link two issues via Linear's `issueRelationCreate` mutation, with `--type blocks|blocked-by|related|duplicate` (default `related`); `blocked-by` is sugar for a `blocks` relation with the issues swapped
 - `issue relations <id>` command to list an issue's outgoing and incoming relations (including the relation IDs needed to remove them)
