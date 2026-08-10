@@ -2,6 +2,7 @@ pub mod changelog;
 pub mod comment;
 pub mod cycle;
 pub mod download;
+pub mod gql;
 pub mod initiative;
 pub mod issue;
 pub mod label;

@@ -244,6 +244,73 @@ pub async fn resolve_cycle_identifier(
     }
 }
 
+/// Resolve a single label identifier (name or UUID) to a UUID.
+///
+/// Tries a case-insensitive name match first, since label names are free-text
+/// and can themselves look like a UUID to `is_uuid` (e.g. a long hyphenated
+/// name). Only when no name matches do we fall back to treating the input as a
+/// raw UUID, so a genuine ID still works without a wasted error.
+///
+/// Linear allows the same label name in multiple teams, so a bare name can be
+/// ambiguous. When more than one label matches we bail rather than pick an
+/// arbitrary one — important because callers like `label delete` are
+/// destructive. Pass `team` to scope the search to a single team and
+/// disambiguate.
+pub async fn resolve_label_identifier(
+    client: &LinearClient,
+    identifier: &str,
+    team: Option<&str>,
+) -> Result<String> {
+    let filter = match team {
+        Some(t) => {
+            let team_id = resolve_team_identifier(client, t).await?;
+            Some(json!({ "team": { "id": { "eq": team_id } } }))
+        }
+        None => None,
+    };
+
+    let all_labels = fetch_all_labels(client, filter).await?;
+
+    let lower = identifier.to_lowercase();
+    let matches: Vec<&Label> = all_labels
+        .iter()
+        .filter(|l| l.name.to_lowercase() == lower)
+        .collect();
+
+    match matches.as_slice() {
+        [label] => return Ok(label.id.clone()),
+        [_, ..] => bail!(
+            "Label '{}' is ambiguous — {} labels share that name across teams: {}. \
+             Re-run with --team to choose one, or pass the label's UUID.",
+            identifier,
+            matches.len(),
+            matches
+                .iter()
+                .map(|l| match &l.team {
+                    Some(t) => t.key.clone().unwrap_or_else(|| t.name.clone()),
+                    None => "(workspace)".to_string(),
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        [] => {}
+    }
+
+    if is_uuid(identifier) {
+        return Ok(identifier.to_string());
+    }
+
+    bail!(
+        "Label '{}' not found. Available labels: {}",
+        identifier,
+        all_labels
+            .iter()
+            .map(|l| l.name.as_str())
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
+}
+
 /// Resolve label names to label IDs via case-insensitive matching.
 /// Paginates through all workspace labels to avoid missing any.
 pub async fn resolve_label_names(client: &LinearClient, names: &[String]) -> Result<Vec<String>> {
@@ -302,4 +369,29 @@ pub async fn fetch_all_labels(
     }
 
     Ok(all_labels)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_uuid;
+
+    #[test]
+    fn detects_real_uuids() {
+        assert!(is_uuid("a1b2c3d4-e5f6-7890-abcd-ef1234567890"));
+    }
+
+    #[test]
+    fn rejects_short_or_plain_strings() {
+        assert!(!is_uuid("bug"));
+        assert!(!is_uuid("needs review")); // spaces, no dash
+        assert!(!is_uuid("good-first-issue")); // has dash but under the length cutoff
+    }
+
+    #[test]
+    fn long_hyphenated_label_name_looks_like_a_uuid() {
+        // The heuristic can't tell this free-text label name from a UUID, which
+        // is exactly why `resolve_label_identifier` matches by name first and
+        // only falls back to treating the input as a raw id.
+        assert!(is_uuid("needs-more-information-before-triage"));
+    }
 }

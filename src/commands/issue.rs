@@ -359,6 +359,125 @@ pub async fn edit(
     Ok(())
 }
 
+/// Create a relation between two issues. `source`, `target`, and `api_type`
+/// are already resolved by the caller (see `RelationType::resolve`).
+pub async fn relate(
+    client: &LinearClient,
+    source: &str,
+    target: &str,
+    api_type: &str,
+) -> Result<()> {
+    let source_id = resolve::resolve_issue_identifier(client, source).await?;
+    let target_id = resolve::resolve_issue_identifier(client, target).await?;
+
+    let input = json!({
+        "issueId": source_id,
+        "relatedIssueId": target_id,
+        "type": api_type,
+    });
+
+    let data: IssueRelationCreateData = client
+        .execute(
+            ISSUE_RELATION_CREATE_MUTATION,
+            Some(json!({ "input": input })),
+        )
+        .await?;
+
+    if !data.issue_relation_create.success {
+        bail!("Failed to create relation");
+    }
+
+    if let Some(rel) = data.issue_relation_create.issue_relation {
+        let from = rel
+            .issue
+            .as_ref()
+            .map(|i| i.identifier.as_str())
+            .unwrap_or("?");
+        let to = rel
+            .related_issue
+            .as_ref()
+            .map(|i| i.identifier.as_str())
+            .unwrap_or("?");
+        output::print_success(&format!("Linked {} → {} ({})", from, to, rel.relation_type));
+    }
+
+    Ok(())
+}
+
+pub async fn relations(client: &LinearClient, id: &str, json_output: bool) -> Result<()> {
+    if json_output {
+        let data = client
+            .execute_raw(ISSUE_RELATIONS_QUERY, Some(json!({ "id": id })))
+            .await?;
+        output::print_json(&data);
+        return Ok(());
+    }
+
+    let data: IssueRelationsData = client
+        .execute(ISSUE_RELATIONS_QUERY, Some(json!({ "id": id })))
+        .await?;
+    let issue = data.issue;
+
+    output::print_header(&format!(
+        "{} — {} · relations",
+        issue.identifier, issue.title
+    ));
+
+    let mut any = false;
+
+    // Relations defined on this issue (this issue is the source).
+    for rel in &issue.relations.nodes {
+        let label = match rel.relation_type.as_str() {
+            "blocks" => "Blocks",
+            "related" => "Related to",
+            "duplicate" => "Duplicate of",
+            "similar" => "Similar to",
+            other => other,
+        };
+        if let Some(o) = rel.related_issue.as_ref() {
+            println!("  {} {} — {}  ({})", label, o.identifier, o.title, rel.id);
+            any = true;
+        }
+    }
+
+    // Relations pointing at this issue (this issue is the target).
+    for rel in &issue.inverse_relations.nodes {
+        let label = match rel.relation_type.as_str() {
+            "blocks" => "Blocked by",
+            "related" => "Related to",
+            "duplicate" => "Duplicated by",
+            "similar" => "Similar to",
+            other => other,
+        };
+        if let Some(o) = rel.issue.as_ref() {
+            println!("  {} {} — {}  ({})", label, o.identifier, o.title, rel.id);
+            any = true;
+        }
+    }
+
+    if !any {
+        println!("  (no relations)");
+    }
+
+    Ok(())
+}
+
+pub async fn unrelate(client: &LinearClient, relation_id: &str) -> Result<()> {
+    let data: IssueRelationDeleteData = client
+        .execute(
+            ISSUE_RELATION_DELETE_MUTATION,
+            Some(json!({ "id": relation_id })),
+        )
+        .await?;
+
+    if !data.issue_relation_delete.success {
+        bail!("Failed to delete relation");
+    }
+
+    output::print_success(&format!("Removed relation {}", relation_id));
+    Ok(())
+}
+
 #[allow(clippy::too_many_arguments)]
 pub async fn search(
     client: &LinearClient,

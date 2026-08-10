@@ -1,4 +1,30 @@
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
+
+/// How one issue relates to another.
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum RelationType {
+    /// This issue blocks the other
+    Blocks,
+    /// This issue is blocked by the other
+    BlockedBy,
+    /// The two issues are related
+    Related,
+    /// This issue is a duplicate of the other
+    Duplicate,
+}
+
+impl RelationType {
+    /// Map the relation to the (source, target, api_type) the Linear API expects.
+    /// `blocked-by` is sugar for a `blocks` relation with the issues swapped.
+    pub fn resolve<'a>(&self, id: &'a str, to: &'a str) -> (&'a str, &'a str, &'static str) {
+        match self {
+            RelationType::Blocks => (id, to, "blocks"),
+            RelationType::BlockedBy => (to, id, "blocks"),
+            RelationType::Related => (id, to, "related"),
+            RelationType::Duplicate => (id, to, "duplicate"),
+        }
+    }
+}
 
 #[derive(Parser)]
 #[command(name = "lin", about = "A fast CLI for Linear", version)]
@@ -80,6 +106,16 @@ pub enum Commands {
         /// Output directory (defaults to current directory)
         #[arg(long, short, default_value = ".")]
         output: String,
+    },
+
+    /// Run a raw GraphQL query or mutation against the Linear API
+    Gql {
+        /// GraphQL document: a literal string, @file to read from a file, or - for stdin
+        query: String,
+
+        /// Variables as a JSON object: a literal string, @file, or - for stdin
+        #[arg(long)]
+        variables: Option<String>,
     },
 
     /// View changelog
@@ -367,6 +403,29 @@ pub enum IssueCommand {
         #[arg(long)]
         parent: Option<String>,
     },
+    /// Link this issue to another (blocks, blocked-by, related, duplicate)
+    Relate {
+        /// Issue identifier (e.g., ENG-123) or UUID
+        id: String,
+
+        /// The other issue identifier or UUID
+        #[arg(long)]
+        to: String,
+
+        /// Relation type
+        #[arg(long = "type", value_enum, default_value_t = RelationType::Related)]
+        relation_type: RelationType,
+    },
+    /// List an issue's relations
+    Relations {
+        /// Issue identifier (e.g., ENG-123) or UUID
+        id: String,
+    },
+    /// Remove an issue relation by its ID (from `lin issue relations`)
+    Unrelate {
+        /// Relation UUID
+        relation_id: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -624,6 +683,40 @@ pub enum LabelCommand {
         /// Parent label ID
         #[arg(long)]
         parent_id: Option<String>,
+    },
+    /// Edit a label
+    Edit {
+        /// Label name or UUID
+        label: String,
+
+        /// Scope the label lookup to a team (name, key, or UUID) to disambiguate names
+        #[arg(long)]
+        team: Option<String>,
+
+        /// New label name
+        #[arg(long)]
+        name: Option<String>,
+
+        /// Label color (hex, e.g., #ff0000)
+        #[arg(long)]
+        color: Option<String>,
+
+        /// Label description
+        #[arg(long)]
+        description: Option<String>,
+
+        /// Parent label ID
+        #[arg(long)]
+        parent_id: Option<String>,
+    },
+    /// Delete a label
+    Delete {
+        /// Label name or UUID
+        label: String,
+
+        /// Scope the label lookup to a team (name, key, or UUID) to disambiguate names
+        #[arg(long)]
+        team: Option<String>,
     },
 }
 

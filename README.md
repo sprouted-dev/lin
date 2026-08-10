@@ -76,6 +76,12 @@ lin issue attachments list ENG-123
 lin issue attachments add ENG-123 screenshot.png
 lin issue attachments download ENG-123 -o /tmp/
 lin issue attachments download ENG-123 --attachment-id f17b -o /tmp/
+lin issue relate ENG-123 --to ENG-456                 # related (default)
+lin issue relate ENG-123 --to ENG-456 --type blocks   # ENG-123 blocks ENG-456
+lin issue relate ENG-123 --to ENG-456 --type blocked-by
+lin issue relate ENG-123 --to ENG-456 --type duplicate
+lin issue relations ENG-123
+lin issue unrelate <relation-id>                      # id from `lin issue relations`
 ```
 
 ### Comments
@@ -142,6 +148,24 @@ lin label create "Bug" --team APP
 lin workspace current
 lin workspace list
 lin workspace set my-workspace
+```
+
+### Raw GraphQL
+
+For anything the dedicated commands don't cover, `lin gql` runs a raw query or
+mutation against the Linear API using your stored token. Output is always JSON.
+
+```sh
+# Inline query
+lin gql 'query { viewer { id name email } }'
+
+# With variables (JSON object)
+lin gql 'query($id: String!) { issue(id: $id) { identifier title } }' \
+  --variables '{"id": "ENG-123"}'
+
+# Read the document from a file, or - for stdin
+lin gql @query.graphql --variables @vars.json
+cat query.graphql | lin gql -
 ```
 
 ### Identifier Resolution
