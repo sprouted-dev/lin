@@ -17,6 +17,7 @@ on:
       - "Cargo.lock"
       - "CHANGELOG.md"
       - ".github/workflows/ci.yml"
+      - ".github/workflows/release.yml"
       - "rust-toolchain.toml"
       - "justfile"
   merge_group:

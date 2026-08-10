@@ -29,9 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - `--label` flag now finds all workspace labels by paginating through the Linear API instead of only checking the first page
 - `cycle show`, `issue list`, `initiative list`, and `changelog` no longer panic when a title contains a multi-byte UTF-8 character (e.g. em dash) at the truncation boundary
+- Release workflow built the Linux artifact for a target named after the Blacksmith runner label instead of `x86_64-unknown-linux-gnu`, which failed the build and skipped the release, crates.io publish, and Homebrew steps (#44 regression, fixed in #53)
 
 ### Changed
 - CI: migrate GitHub Actions workflows to Blacksmith runners for faster builds and shared caching (#44)
+- CI now also runs on changes to `.github/workflows/release.yml`, so a release-workflow-only PR can satisfy the required status checks
 
 ## [0.7.0] - 2026-04-01
 
