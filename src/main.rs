@@ -32,8 +32,15 @@ fn ensure_auth(cli_workspace: Option<&str>, json: bool, verbose: bool) -> Result
     })
 }
 
+fn main() {
+    // Must happen while the process is still single-threaded — the `time`
+    // crate will not read the system timezone once tokio has spawned workers.
+    date::init_local_offset();
+    tokio_main();
+}
+
 #[tokio::main]
-async fn main() {
+async fn tokio_main() {
     let cli = Cli::parse();
 
     if let Err(e) = run(cli).await {
@@ -120,6 +127,7 @@ async fn run(cli: Cli) -> Result<()> {
                     parent,
                     cycle,
                     due_date,
+                    clear_due_date,
                     attachment,
                     comment,
                 } => {
@@ -138,6 +146,7 @@ async fn run(cli: Cli) -> Result<()> {
                         parent,
                         cycle,
                         due_date,
+                        clear_due_date,
                         attachment,
                     )
                     .await?;

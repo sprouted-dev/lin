@@ -611,8 +611,10 @@ pub struct IssueUpdateInput {
     pub parent_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cycle_id: Option<String>,
+    /// `None` leaves the due date alone; `Some(Null)` clears it, which is why
+    /// this is a `Value` rather than a `String` like the other fields.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub due_date: Option<String>,
+    pub due_date: Option<serde_json::Value>,
 }
 
 // --- Cycles ---

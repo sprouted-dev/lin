@@ -239,6 +239,7 @@ pub async fn edit(
     parent: Option<String>,
     cycle: Option<String>,
     due_date: Option<String>,
+    clear_due_date: bool,
     attachment_path: Option<String>,
 ) -> Result<()> {
     // Resolve label names — fetch issue if labels or cycle need it
@@ -324,9 +325,11 @@ pub async fn edit(
         None => None,
     };
 
-    let resolved_due_date = match due_date {
-        Some(ref d) => Some(date::parse_future_date_only(d)?),
-        None => None,
+    // Clap rejects --due-date with --clear-due-date, so at most one arm applies.
+    let resolved_due_date = match (due_date.as_ref(), clear_due_date) {
+        (Some(d), _) => Some(json!(date::parse_future_date_only(d)?)),
+        (None, true) => Some(serde_json::Value::Null),
+        (None, false) => None,
     };
 
     let input = IssueUpdateInput {
