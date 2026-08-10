@@ -24,8 +24,8 @@ jobs:
           - runner: macos-latest
             target: x86_64-apple-darwin
             asset: lin-macos-x86_64.tar.gz
-          - runner: ubuntu-22.04
-            target: blacksmith-4vcpu-ubuntu-2404
+          - runner: blacksmith-4vcpu-ubuntu-2404
+            target: x86_64-unknown-linux-gnu
             asset: lin-linux-x86_64.tar.gz
     steps:
       - uses: actions/checkout@v4
