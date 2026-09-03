@@ -98,7 +98,10 @@ pub enum Commands {
     #[command(subcommand)]
     Initiative(InitiativeCommand),
 
-    /// Download a file from a Linear upload URL
+    /// Download a file from a Linear upload URL (e.g. a comment attachment)
+    ///
+    /// This is how you read a file attached to a comment: `lin comment view`
+    /// prints the uploads.linear.app link, and this fetches it.
     Download {
         /// Linear upload URL (https://uploads.linear.app/...)
         url: String,
@@ -176,6 +179,9 @@ pub enum IssueCommand {
         due_date: Option<String>,
 
         /// Attach a file to the created issue
+        ///
+        /// Creates a Linear attachment, so `lin issue attachments list` and
+        /// `lin issue attachments download` see it.
         #[arg(long)]
         attachment: Option<String>,
     },
@@ -237,6 +243,9 @@ pub enum IssueCommand {
         clear_due_date: bool,
 
         /// Attach a file to the issue
+        ///
+        /// Creates a Linear attachment, so `lin issue attachments list` and
+        /// `lin issue attachments download` see it.
         #[arg(long)]
         attachment: Option<String>,
 
@@ -407,7 +416,11 @@ pub enum IssueCommand {
         /// Comment body
         body: String,
 
-        /// Attach a file (uploads and embeds markdown link in body)
+        /// Attach a file (uploaded, then embedded as a markdown link in the body)
+        ///
+        /// This is not a Linear attachment: `lin issue attachments list` will
+        /// not show it. To read it back, copy the uploads.linear.app link from
+        /// `lin comment view` and run `lin download <url>`.
         #[arg(long)]
         attachment: Option<String>,
 
@@ -443,11 +456,16 @@ pub enum IssueCommand {
 #[derive(Subcommand)]
 pub enum AttachmentCommand {
     /// List attachments on an issue
+    ///
+    /// Covers attachments on the issue itself only. Files attached to comments
+    /// are markdown links inside the comment body; see `lin comment view`.
     List {
         /// Issue identifier (e.g., ENG-123) or UUID
         id: String,
     },
     /// Add a file attachment to an issue
+    ///
+    /// Creates a Linear attachment, so `list` and `download` see it.
     Add {
         /// Issue identifier (e.g., ENG-123) or UUID
         id: String,
@@ -457,7 +475,12 @@ pub enum AttachmentCommand {
         #[arg(long)]
         title: Option<String>,
     },
-    /// Download attachments from an issue
+    /// Download an issue's attachments
+    ///
+    /// Covers attachments on the issue plus uploads linked inline in its
+    /// description. Comment attachments are not included: copy the
+    /// uploads.linear.app link from `lin comment view` and run
+    /// `lin download <url>`.
     Download {
         /// Issue identifier (e.g., ENG-123) or UUID
         id: String,
@@ -465,6 +488,9 @@ pub enum AttachmentCommand {
         #[arg(long, short, default_value = ".")]
         output: String,
         /// Download only the attachment matching this ID prefix
+        ///
+        /// Restricts the download to formal attachments; inline uploads in the
+        /// description are skipped.
         #[arg(long)]
         attachment_id: Option<String>,
     },
@@ -505,7 +531,11 @@ pub enum CommentCommand {
         /// Comment body
         body: String,
 
-        /// Attach a file (uploads and embeds markdown link in body)
+        /// Attach a file (uploaded, then embedded as a markdown link in the body)
+        ///
+        /// This is not a Linear attachment: `lin issue attachments list` will
+        /// not show it. To read it back, copy the uploads.linear.app link from
+        /// `lin comment view` and run `lin download <url>`.
         #[arg(long)]
         attachment: Option<String>,
 
@@ -520,7 +550,11 @@ pub enum CommentCommand {
         /// Reply body
         body: String,
 
-        /// Attach a file (uploads and embeds markdown link in body)
+        /// Attach a file (uploaded, then embedded as a markdown link in the body)
+        ///
+        /// This is not a Linear attachment: `lin issue attachments list` will
+        /// not show it. To read it back, copy the uploads.linear.app link from
+        /// `lin comment view` and run `lin download <url>`.
         #[arg(long)]
         attachment: Option<String>,
     },
@@ -531,7 +565,11 @@ pub enum CommentCommand {
         /// New comment body
         body: String,
 
-        /// Attach a file (uploads and embeds markdown link in body)
+        /// Attach a file (uploaded, then embedded as a markdown link in the body)
+        ///
+        /// This is not a Linear attachment: `lin issue attachments list` will
+        /// not show it. To read it back, copy the uploads.linear.app link from
+        /// `lin comment view` and run `lin download <url>`.
         #[arg(long)]
         attachment: Option<String>,
     },
