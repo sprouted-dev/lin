@@ -81,3 +81,18 @@ pub fn print_table(headers: &[&str], rows: &[Vec<String>]) {
         println!("  {}", line.join("  "));
     }
 }
+
+/// Shorten `s` to `max` characters, appending an ellipsis when it was cut.
+/// Counts characters rather than bytes so multi-byte text never splits mid-char.
+pub fn truncate(s: &str, max: usize) -> String {
+    if s.chars().count() <= max {
+        s.to_string()
+    } else {
+        let prefix: String = s.chars().take(max - 1).collect();
+        format!("{prefix}…")
+    }
+}
+
+pub fn print_warning(msg: &str) {
+    eprintln!("{} {}", "warning:".yellow().bold(), msg);
+}

@@ -94,6 +94,10 @@ pub enum Commands {
     #[command(subcommand)]
     Cycle(CycleCommand),
 
+    /// List and view templates (issue, project, document)
+    #[command(subcommand)]
+    Template(TemplateCommand),
+
     /// Manage initiatives
     #[command(subcommand)]
     Initiative(InitiativeCommand),
@@ -178,6 +182,12 @@ pub enum IssueCommand {
         /// Attach a file to the created issue
         #[arg(long)]
         attachment: Option<String>,
+
+        /// Issue template to create from (name or UUID)
+        ///
+        /// Any other flag you pass overrides the template's value for that field.
+        #[arg(long)]
+        template: Option<String>,
     },
     /// Edit an existing issue
     Edit {
@@ -732,6 +742,55 @@ pub enum LabelCommand {
     },
 }
 
+/// Entity a template pre-fills. Mirrors Linear's `Template.type` values.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
+pub enum TemplateType {
+    Issue,
+    Project,
+    Document,
+}
+
+impl TemplateType {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            TemplateType::Issue => "issue",
+            TemplateType::Project => "project",
+            TemplateType::Document => "document",
+        }
+    }
+}
+
+#[derive(Subcommand)]
+pub enum TemplateCommand {
+    /// List templates
+    List {
+        /// Templates available to a team (name, key, or UUID): its own plus workspace-level ones
+        #[arg(long)]
+        team: Option<String>,
+
+        /// Entity type to list
+        #[arg(long = "type", value_enum, default_value_t = TemplateType::Issue)]
+        template_type: TemplateType,
+
+        /// List every entity type instead of filtering by --type
+        #[arg(long, conflicts_with = "template_type")]
+        all_types: bool,
+
+        /// Only workspace-level templates (those belonging to no team)
+        #[arg(long, conflicts_with = "team")]
+        global: bool,
+    },
+    /// View a template's details and content
+    View {
+        /// Template name or UUID
+        template: String,
+
+        /// Scope the template lookup to a team (name, key, or UUID) to disambiguate names
+        #[arg(long)]
+        team: Option<String>,
+    },
+}
+
 #[derive(Subcommand)]
 pub enum CycleCommand {
     /// List cycles for a team
@@ -834,6 +893,100 @@ mod tests {
 
     fn parse(args: &[&str]) -> Cli {
         Cli::try_parse_from(args).expect("failed to parse")
+    }
+
+    #[test]
+    fn template_list_defaults_to_issue_type() {
+        let cli = parse(&["lin", "template", "list"]);
+        match cli.command {
+            Commands::Template(TemplateCommand::List {
+                team,
+                template_type,
+                all_types,
+                global,
+            }) => {
+                assert!(team.is_none());
+                assert_eq!(template_type, TemplateType::Issue);
+                assert!(!all_types);
+                assert!(!global);
+            }
+            _ => panic!("expected Template List"),
+        }
+    }
+
+    #[test]
+    fn template_list_rejects_unknown_type() {
+        let result = Cli::try_parse_from(["lin", "template", "list", "--type", "issues"]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn template_list_all_types_conflicts_with_type() {
+        let result = Cli::try_parse_from([
+            "lin",
+            "template",
+            "list",
+            "--type",
+            "project",
+            "--all-types",
+        ]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn template_list_all_types_alone_is_allowed() {
+        let cli = parse(&["lin", "template", "list", "--all-types"]);
+        match cli.command {
+            Commands::Template(TemplateCommand::List { all_types, .. }) => assert!(all_types),
+            _ => panic!("expected Template List"),
+        }
+    }
+
+    #[test]
+    fn template_list_global_conflicts_with_team() {
+        let result = Cli::try_parse_from(["lin", "template", "list", "--global", "--team", "ENG"]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn template_view_parses() {
+        let cli = parse(&["lin", "template", "view", "Bug report", "--team", "ENG"]);
+        match cli.command {
+            Commands::Template(TemplateCommand::View { template, team }) => {
+                assert_eq!(template, "Bug report");
+                assert_eq!(team.as_deref(), Some("ENG"));
+            }
+            _ => panic!("expected Template View"),
+        }
+    }
+
+    #[test]
+    fn issue_create_accepts_template() {
+        let cli = parse(&[
+            "lin",
+            "issue",
+            "create",
+            "Login is broken",
+            "--team",
+            "ENG",
+            "--template",
+            "Bug report",
+            "--priority",
+            "1",
+        ]);
+        match cli.command {
+            Commands::Issue(IssueCommand::Create {
+                title,
+                template,
+                priority,
+                ..
+            }) => {
+                assert_eq!(title, "Login is broken");
+                assert_eq!(template.as_deref(), Some("Bug report"));
+                assert_eq!(priority, Some(1));
+            }
+            _ => panic!("expected Issue Create"),
+        }
     }
 
     #[test]

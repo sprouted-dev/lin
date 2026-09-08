@@ -9,5 +9,6 @@ pub mod label;
 pub mod login;
 pub mod project;
 pub mod team;
+pub mod template;
 pub mod user;
 pub mod workspace_cmd;

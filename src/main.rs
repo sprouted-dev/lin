@@ -95,6 +95,7 @@ async fn run(cli: Cli) -> Result<()> {
                     cycle,
                     due_date,
                     attachment,
+                    template,
                 } => {
                     commands::issue::create(
                         &ctx.client,
@@ -110,6 +111,7 @@ async fn run(cli: Cli) -> Result<()> {
                         cycle.as_deref(),
                         due_date.as_deref(),
                         attachment.as_deref(),
+                        template.as_deref(),
                     )
                     .await?;
                 }
@@ -538,6 +540,36 @@ async fn run(cli: Cli) -> Result<()> {
                 }
                 CycleCommand::Show { id, team } => {
                     commands::cycle::show(&ctx.client, &id, &team, ctx.json).await?;
+                }
+            }
+        }
+
+        Commands::Template(cmd) => {
+            let ctx = ensure_auth(ws_flag, json, verbose)?;
+            match cmd {
+                TemplateCommand::List {
+                    team,
+                    template_type,
+                    all_types,
+                    global,
+                } => {
+                    let template_type = if all_types {
+                        None
+                    } else {
+                        Some(template_type.as_str())
+                    };
+                    commands::template::list(
+                        &ctx.client,
+                        team.as_deref(),
+                        template_type,
+                        global,
+                        ctx.json,
+                    )
+                    .await?;
+                }
+                TemplateCommand::View { template, team } => {
+                    commands::template::view(&ctx.client, &template, team.as_deref(), ctx.json)
+                        .await?;
                 }
             }
         }

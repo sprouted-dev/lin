@@ -150,6 +150,7 @@ pub async fn create(
     cycle: Option<&str>,
     due_date: Option<&str>,
     attachment_path: Option<&str>,
+    template: Option<&str>,
 ) -> Result<()> {
     let team_id = resolve::resolve_team_identifier(client, team).await?;
 
@@ -192,6 +193,18 @@ pub async fn create(
 
     if let Some(due) = due_date {
         input.due_date = Some(date::parse_future_date_only(due)?);
+    }
+
+    // Sent alongside the explicit fields above: Linear applies the template
+    // first, then lets any value present in the input override it.
+    if let Some(tpl) = template {
+        // team_id is already resolved above; passing the raw name would cost a
+        // second TEAMS_QUERY. Scoping by team still finds workspace-level
+        // templates — see fetch_templates.
+        input.template_id = Some(
+            resolve::resolve_template_identifier(client, tpl, Some(&team_id), Some("issue"))
+                .await?,
+        );
     }
 
     let data: IssueCreateData = client
