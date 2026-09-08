@@ -549,14 +549,14 @@ async fn run(cli: Cli) -> Result<()> {
             match cmd {
                 TemplateCommand::List {
                     team,
-                    r#type,
+                    template_type,
                     all_types,
                     global,
                 } => {
                     let template_type = if all_types {
                         None
                     } else {
-                        Some(r#type.as_str())
+                        Some(template_type.as_str())
                     };
                     commands::template::list(
                         &ctx.client,

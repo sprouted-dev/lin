@@ -590,6 +590,11 @@ pub const INITIATIVE_QUERY: &str = r#"
     }
 "#;
 
+/// Lean projection for listing and name resolution. `content` and
+/// `templateData` are deliberately omitted: templateData holds the whole
+/// pre-filled entity payload, and pulling up to 250 of them to read one `id`
+/// dominates the response. `TEMPLATE_QUERY` fetches those for a single
+/// template once its ID is known.
 pub const TEMPLATE_SEARCH_QUERY: &str = r#"
     query TemplateSearch($filter: TemplateFilter, $first: Int) {
         templateSearch(filter: $filter, first: $first) {
@@ -597,8 +602,6 @@ pub const TEMPLATE_SEARCH_QUERY: &str = r#"
             name
             description
             type
-            content
-            templateData
             team {
                 key
                 name

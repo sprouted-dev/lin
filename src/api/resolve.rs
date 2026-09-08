@@ -1,9 +1,10 @@
 use anyhow::{Result, bail};
-use serde_json::json;
+use serde_json::{Value, json};
 
 use super::client::LinearClient;
 use super::queries::*;
 use super::types::*;
+use crate::output;
 
 /// Check if a string looks like a UUID (contains dashes and is long enough)
 fn is_uuid(s: &str) -> bool {
@@ -271,43 +272,17 @@ pub async fn resolve_label_identifier(
 
     let all_labels = fetch_all_labels(client, filter).await?;
 
-    let lower = identifier.to_lowercase();
-    let matches: Vec<&Label> = all_labels
-        .iter()
-        .filter(|l| l.name.to_lowercase() == lower)
-        .collect();
-
-    match matches.as_slice() {
-        [label] => return Ok(label.id.clone()),
-        [_, ..] => bail!(
-            "Label '{}' is ambiguous — {} labels share that name across teams: {}. \
-             Re-run with --team to choose one, or pass the label's UUID.",
-            identifier,
-            matches.len(),
-            matches
-                .iter()
-                .map(|l| match &l.team {
-                    Some(t) => t.key.clone().unwrap_or_else(|| t.name.clone()),
-                    None => "(workspace)".to_string(),
-                })
-                .collect::<Vec<_>>()
-                .join(", ")
-        ),
-        [] => {}
-    }
-
-    if is_uuid(identifier) {
-        return Ok(identifier.to_string());
-    }
-
-    bail!(
-        "Label '{}' not found. Available labels: {}",
+    resolve_unique_by_name(
         identifier,
-        all_labels
-            .iter()
-            .map(|l| l.name.as_str())
-            .collect::<Vec<_>>()
-            .join(", ")
+        &all_labels,
+        NameLookup {
+            noun: "Label",
+            plural: "labels",
+            ambiguity_hint: "Re-run with --team to choose one, or pass the label's UUID.",
+        },
+        |l| l.name.as_str(),
+        |l| l.id.as_str(),
+        |l| owner_label(l.team.as_ref()),
     )
 }
 
@@ -371,98 +346,267 @@ pub async fn fetch_all_labels(
     Ok(all_labels)
 }
 
-/// Human-readable owner of a template: the team key/name, or "(workspace)"
-/// for a workspace-level template that belongs to no team.
-pub fn template_owner(template: &Template) -> String {
-    match &template.team {
+/// Human-readable owner of a team-scoped entity: the team key, falling back to
+/// the team name, or `(workspace)` when it belongs to no team.
+pub fn owner_label(team: Option<&TeamRef>) -> String {
+    match team {
         Some(t) => t.key.clone().unwrap_or_else(|| t.name.clone()),
         None => "(workspace)".to_string(),
     }
 }
 
-/// Fetch templates in the order the Linear app shows them, optionally scoped to
-/// one team (or to workspace-level templates only) and to one entity type.
-pub async fn fetch_templates(
-    client: &LinearClient,
-    team: Option<&str>,
-    template_type: Option<&str>,
-    global_only: bool,
-) -> Result<Vec<Template>> {
-    let mut filter = json!({});
-
-    if let Some(t) = template_type {
-        filter["type"] = json!({ "eq": t });
-    }
-
-    if global_only {
-        filter["team"] = json!({ "null": true });
-    } else if let Some(t) = team {
-        let team_id = resolve_team_identifier(client, t).await?;
-        filter["team"] = json!({ "id": { "eq": team_id } });
-    }
-
-    // templateSearch caps `first` at 250 and returns a plain list, not a
-    // paginated connection, so one request is the whole result set.
-    let mut vars = json!({ "first": 250 });
-    if !filter.as_object().is_none_or(|o| o.is_empty()) {
-        vars["filter"] = filter;
-    }
-
-    let data: TemplateSearchData = client.execute(TEMPLATE_SEARCH_QUERY, Some(vars)).await?;
-    Ok(data.template_search)
+/// Pick the single candidate whose name matches `identifier`, case-insensitively.
+///
+/// Names are tried before `is_uuid`, because free-text names can themselves look
+/// like a UUID to `is_uuid` (e.g. a long hyphenated name such as
+/// "Engineering - Bug Report"). Only when nothing matches by name do we fall
+/// back to treating the input as a raw UUID, so a genuine ID still works
+/// without a wasted error.
+///
+/// More than one match is an error rather than an arbitrary pick, since callers
+/// include destructive commands like `label delete`.
+/// Wording [`resolve_unique_by_name`] puts in its errors, so the one algorithm
+/// can speak for whichever entity the caller is resolving.
+struct NameLookup<'a> {
+    /// Capitalised singular, e.g. `Template`.
+    noun: &'a str,
+    /// Lowercase plural, e.g. `templates`.
+    plural: &'a str,
+    /// Sentence telling the user how to narrow an ambiguous match.
+    ambiguity_hint: &'a str,
 }
 
-/// Resolve a template name (case-insensitive) or UUID to a template ID.
-pub async fn resolve_template_identifier(
-    client: &LinearClient,
+fn resolve_unique_by_name<T>(
     identifier: &str,
-    team: Option<&str>,
-    template_type: Option<&str>,
+    candidates: &[T],
+    words: NameLookup<'_>,
+    name_of: impl Fn(&T) -> &str,
+    id_of: impl Fn(&T) -> &str,
+    owner_of: impl Fn(&T) -> String,
 ) -> Result<String> {
+    let NameLookup {
+        noun,
+        plural,
+        ambiguity_hint,
+    } = words;
+    let lower = identifier.to_lowercase();
+    let matches: Vec<&T> = candidates
+        .iter()
+        .filter(|c| name_of(c).to_lowercase() == lower)
+        .collect();
+
+    match matches.as_slice() {
+        [only] => return Ok(id_of(only).to_string()),
+        [_, ..] => bail!(
+            "{} '{}' is ambiguous — {} {} share that name ({}). {}",
+            noun,
+            identifier,
+            matches.len(),
+            plural,
+            matches
+                .iter()
+                .map(|c| owner_of(c))
+                .collect::<Vec<_>>()
+                .join(", "),
+            ambiguity_hint
+        ),
+        [] => {}
+    }
+
     if is_uuid(identifier) {
         return Ok(identifier.to_string());
     }
 
-    let templates = fetch_templates(client, team, template_type, false).await?;
-
-    let lower = identifier.to_lowercase();
-    let matches: Vec<&Template> = templates
-        .iter()
-        .filter(|t| t.name.to_lowercase() == lower)
-        .collect();
-
-    match matches.as_slice() {
-        [template] => Ok(template.id.clone()),
-        [_, ..] => bail!(
-            "Template '{}' is ambiguous — {} templates share that name across teams: {}. \
-             Re-run with --team to choose one, or pass the template's UUID.",
-            identifier,
-            matches.len(),
-            matches
+    bail!(
+        "{} '{}' not found. Available {}: {}",
+        noun,
+        identifier,
+        plural,
+        if candidates.is_empty() {
+            "(none)".to_string()
+        } else {
+            candidates
                 .iter()
-                .map(|t| template_owner(t))
+                .map(&name_of)
                 .collect::<Vec<_>>()
                 .join(", ")
-        ),
-        [] => bail!(
-            "Template '{}' not found. Available templates: {}",
-            identifier,
-            if templates.is_empty() {
-                "(none)".to_string()
-            } else {
-                templates
-                    .iter()
-                    .map(|t| t.name.as_str())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            }
-        ),
+        }
+    )
+}
+
+/// Templates `templateSearch` can return in one call before it truncates.
+const TEMPLATE_SEARCH_LIMIT: usize = 250;
+
+/// Fetch templates in the order the Linear app shows them (`templateSearch`
+/// documents that ordering), optionally narrowed to one entity type.
+///
+/// `team_id` must already be resolved — callers that hold a team ID should not
+/// pay for a second `TEAMS_QUERY`. Scoping to a team returns the templates
+/// *available to* that team: its own plus the workspace-level ones, which is
+/// what the Linear issue-creation picker shows. `global_only` narrows to just
+/// the workspace-level templates.
+pub async fn fetch_templates(
+    client: &LinearClient,
+    team_id: Option<&str>,
+    template_type: Option<&str>,
+    global_only: bool,
+) -> Result<Vec<Template>> {
+    let mut filter = serde_json::Map::new();
+
+    if let Some(t) = template_type {
+        filter.insert("type".to_string(), json!({ "eq": t }));
     }
+
+    if global_only {
+        filter.insert("team".to_string(), json!({ "null": true }));
+    } else if let Some(team_id) = team_id {
+        // A workspace-level template has a null team, so a `team.id.eq` filter
+        // alone would hide every global template from a team-scoped lookup.
+        filter.insert(
+            "or".to_string(),
+            json!([
+                { "team": { "id": { "eq": team_id } } },
+                { "team": { "null": true } }
+            ]),
+        );
+    }
+
+    let mut vars = json!({ "first": TEMPLATE_SEARCH_LIMIT });
+    if !filter.is_empty() {
+        vars["filter"] = Value::Object(filter);
+    }
+
+    let data: TemplateSearchData = client.execute(TEMPLATE_SEARCH_QUERY, Some(vars)).await?;
+    let templates = data.template_search;
+
+    // templateSearch returns a plain list with no cursor, so there is no way to
+    // page past the cap. Say so rather than presenting a truncated set as complete.
+    if templates.len() >= TEMPLATE_SEARCH_LIMIT {
+        output::print_warning(&format!(
+            "Showing the first {TEMPLATE_SEARCH_LIMIT} templates; the API returns no more in one \
+             request. Narrow the search with --team or --type."
+        ));
+    }
+
+    Ok(templates)
+}
+
+/// Resolve a template name (case-insensitive) or UUID to a template ID.
+/// `team_id` must already be resolved; see [`fetch_templates`].
+pub async fn resolve_template_identifier(
+    client: &LinearClient,
+    identifier: &str,
+    team_id: Option<&str>,
+    template_type: Option<&str>,
+) -> Result<String> {
+    let templates = fetch_templates(client, team_id, template_type, false).await?;
+
+    resolve_unique_by_name(
+        identifier,
+        &templates,
+        NameLookup {
+            noun: "Template",
+            plural: "templates",
+            ambiguity_hint: "Pass the template's UUID to choose one, or --team to narrow the search.",
+        },
+        |t| t.name.as_str(),
+        |t| t.id.as_str(),
+        |t| owner_label(t.team.as_ref()),
+    )
 }
 
 #[cfg(test)]
 mod tests {
-    use super::is_uuid;
+    use super::{NameLookup, is_uuid, owner_label, resolve_unique_by_name};
+    use crate::api::types::TeamRef;
+
+    struct Candidate {
+        id: &'static str,
+        name: &'static str,
+        team: Option<TeamRef>,
+    }
+
+    fn candidate(id: &'static str, name: &'static str, team_key: Option<&str>) -> Candidate {
+        Candidate {
+            id,
+            name,
+            team: team_key.map(|k| TeamRef {
+                key: Some(k.to_string()),
+                name: format!("{k} team"),
+            }),
+        }
+    }
+
+    fn resolve(identifier: &str, candidates: &[Candidate]) -> anyhow::Result<String> {
+        resolve_unique_by_name(
+            identifier,
+            candidates,
+            NameLookup {
+                noun: "Template",
+                plural: "templates",
+                ambiguity_hint: "Pass the UUID.",
+            },
+            |c| c.name,
+            |c| c.id,
+            |c| owner_label(c.team.as_ref()),
+        )
+    }
+
+    #[test]
+    fn matches_name_case_insensitively() {
+        let items = [candidate("id-1", "Bug Report", Some("ENG"))];
+        assert_eq!(resolve("bug report", &items).unwrap(), "id-1");
+    }
+
+    #[test]
+    fn hyphenated_name_beats_uuid_heuristic() {
+        // "Engineering - Bug Report" is >20 chars and contains '-', so is_uuid
+        // says true. The name match has to win, or the literal name is sent to
+        // the API as an ID.
+        let name = "Engineering - Bug Report";
+        assert!(is_uuid(name));
+        let items = [candidate("id-1", name, Some("ENG"))];
+        assert_eq!(resolve(name, &items).unwrap(), "id-1");
+    }
+
+    #[test]
+    fn falls_back_to_uuid_when_no_name_matches() {
+        let items = [candidate("id-1", "Bug Report", Some("ENG"))];
+        let uuid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
+        assert_eq!(resolve(uuid, &items).unwrap(), uuid);
+    }
+
+    #[test]
+    fn duplicate_names_are_ambiguous_not_arbitrary() {
+        let items = [
+            candidate("id-1", "Bug Report", Some("ENG")),
+            candidate("id-2", "Bug Report", Some("APP")),
+        ];
+        let err = resolve("Bug Report", &items).unwrap_err().to_string();
+        assert!(err.contains("ambiguous"), "{err}");
+        assert!(err.contains("ENG") && err.contains("APP"), "{err}");
+    }
+
+    #[test]
+    fn unknown_name_lists_what_is_available() {
+        let items = [candidate("id-1", "Bug Report", Some("ENG"))];
+        let err = resolve("Nope", &items).unwrap_err().to_string();
+        assert!(err.contains("not found"), "{err}");
+        assert!(err.contains("Bug Report"), "{err}");
+    }
+
+    #[test]
+    fn empty_candidate_list_says_none() {
+        let items: [Candidate; 0] = [];
+        let err = resolve("Nope", &items).unwrap_err().to_string();
+        assert!(err.contains("(none)"), "{err}");
+    }
+
+    #[test]
+    fn workspace_level_entity_has_no_team_key() {
+        let items = [candidate("id-1", "Global", None)];
+        assert_eq!(owner_label(items[0].team.as_ref()), "(workspace)");
+    }
 
     #[test]
     fn detects_real_uuids() {

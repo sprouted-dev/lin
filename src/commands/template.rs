@@ -7,6 +7,15 @@ use crate::api::resolve;
 use crate::api::types::*;
 use crate::output;
 
+/// Resolve a team name/key to an ID once, so the resolver underneath does not
+/// repeat the lookup.
+async fn team_id_for(client: &LinearClient, team: Option<&str>) -> Result<Option<String>> {
+    match team {
+        Some(t) => Ok(Some(resolve::resolve_team_identifier(client, t).await?)),
+        None => Ok(None),
+    }
+}
+
 pub async fn list(
     client: &LinearClient,
     team: Option<&str>,
@@ -14,7 +23,9 @@ pub async fn list(
     global_only: bool,
     json_output: bool,
 ) -> Result<()> {
-    let templates = resolve::fetch_templates(client, team, template_type, global_only).await?;
+    let team_id = team_id_for(client, team).await?;
+    let templates =
+        resolve::fetch_templates(client, team_id.as_deref(), template_type, global_only).await?;
 
     if json_output {
         output::print_json(&serde_json::to_value(&templates)?);
@@ -30,8 +41,8 @@ pub async fn list(
             vec![
                 t.name.clone(),
                 t.template_type.clone(),
-                resolve::template_owner(t),
-                t.description.clone().unwrap_or_default(),
+                resolve::owner_label(t.team.as_ref()),
+                output::truncate(t.description.as_deref().unwrap_or_default(), 50),
             ]
         })
         .collect();
@@ -46,8 +57,13 @@ pub async fn view(
     team: Option<&str>,
     json_output: bool,
 ) -> Result<()> {
-    let template_id = resolve::resolve_template_identifier(client, template, team, None).await?;
+    let team_id = team_id_for(client, team).await?;
+    let template_id =
+        resolve::resolve_template_identifier(client, template, team_id.as_deref(), None).await?;
 
+    // Second round trip on purpose: TEMPLATE_SEARCH_QUERY omits content and
+    // templateData so that listing and name resolution stay cheap, and this is
+    // the only path that needs them.
     let data: TemplateData = client
         .execute(TEMPLATE_QUERY, Some(json!({ "id": template_id })))
         .await?;
@@ -60,7 +76,7 @@ pub async fn view(
 
     output::print_header(&template.name);
     output::print_field("Type", &template.template_type);
-    output::print_field("Team", &resolve::template_owner(&template));
+    output::print_field("Team", &resolve::owner_label(template.team.as_ref()));
     if let Some(description) = &template.description {
         output::print_field("Description", description);
     }

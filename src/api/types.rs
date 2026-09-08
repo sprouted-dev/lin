@@ -51,11 +51,13 @@ pub struct Label {
     pub name: String,
     pub color: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub team: Option<LabelTeam>,
+    pub team: Option<TeamRef>,
 }
 
+/// The team a label or template belongs to. `None` on the owning struct means
+/// the entity is workspace-level rather than scoped to one team.
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct LabelTeam {
+pub struct TeamRef {
     pub key: Option<String>,
     pub name: String,
 }
@@ -733,13 +735,7 @@ pub struct Template {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub template_data: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub team: Option<TemplateTeam>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct TemplateTeam {
-    pub key: Option<String>,
-    pub name: String,
+    pub team: Option<TeamRef>,
 }
 
 #[derive(Debug, Deserialize)]

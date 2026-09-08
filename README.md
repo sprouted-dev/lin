@@ -155,12 +155,17 @@ creation; templates themselves are authored in the Linear UI.
 
 ```sh
 lin template list
-lin template list --team APP
+lin template list --team APP         # APP's templates plus workspace-level ones
 lin template list --global           # workspace-level templates only
-lin template list --type project
+lin template list --type project     # issue (default), project, or document
+lin template list --all-types
 lin template view "Bug report"
 lin issue create "Login is broken" --team APP --template "Bug report"
 ```
+
+Scoping to a team returns the templates *available to* that team — its own plus
+the workspace-level ones — matching what Linear's issue-creation picker shows.
+`--global` narrows to workspace-level only.
 
 Flags you pass alongside `--template` win: `--template "Bug report" --priority 1`
 applies the template, then overrides its priority.

@@ -94,7 +94,7 @@ pub enum Commands {
     #[command(subcommand)]
     Cycle(CycleCommand),
 
-    /// List and view issue templates
+    /// List and view templates (issue, project, document)
     #[command(subcommand)]
     Template(TemplateCommand),
 
@@ -742,20 +742,38 @@ pub enum LabelCommand {
     },
 }
 
+/// Entity a template pre-fills. Mirrors Linear's `Template.type` values.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
+pub enum TemplateType {
+    Issue,
+    Project,
+    Document,
+}
+
+impl TemplateType {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            TemplateType::Issue => "issue",
+            TemplateType::Project => "project",
+            TemplateType::Document => "document",
+        }
+    }
+}
+
 #[derive(Subcommand)]
 pub enum TemplateCommand {
     /// List templates
     List {
-        /// Filter by team (name, key, or UUID)
+        /// Templates available to a team (name, key, or UUID): its own plus workspace-level ones
         #[arg(long)]
         team: Option<String>,
 
-        /// Entity type to list (issue, project, document)
-        #[arg(long, default_value = "issue")]
-        r#type: String,
+        /// Entity type to list
+        #[arg(long = "type", value_enum, default_value_t = TemplateType::Issue)]
+        template_type: TemplateType,
 
         /// List every entity type instead of filtering by --type
-        #[arg(long)]
+        #[arg(long, conflicts_with = "template_type")]
         all_types: bool,
 
         /// Only workspace-level templates (those belonging to no team)
@@ -883,15 +901,43 @@ mod tests {
         match cli.command {
             Commands::Template(TemplateCommand::List {
                 team,
-                r#type,
+                template_type,
                 all_types,
                 global,
             }) => {
                 assert!(team.is_none());
-                assert_eq!(r#type, "issue");
+                assert_eq!(template_type, TemplateType::Issue);
                 assert!(!all_types);
                 assert!(!global);
             }
+            _ => panic!("expected Template List"),
+        }
+    }
+
+    #[test]
+    fn template_list_rejects_unknown_type() {
+        let result = Cli::try_parse_from(["lin", "template", "list", "--type", "issues"]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn template_list_all_types_conflicts_with_type() {
+        let result = Cli::try_parse_from([
+            "lin",
+            "template",
+            "list",
+            "--type",
+            "project",
+            "--all-types",
+        ]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn template_list_all_types_alone_is_allowed() {
+        let cli = parse(&["lin", "template", "list", "--all-types"]);
+        match cli.command {
+            Commands::Template(TemplateCommand::List { all_types, .. }) => assert!(all_types),
             _ => panic!("expected Template List"),
         }
     }
