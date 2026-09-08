@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `template list` command to list Linear templates via `templateSearch`, with `--team <name|key|uuid>` to scope to one team, `--global` for workspace-level templates only (those belonging to no team), and `--type issue|project|document` (default `issue`) or `--all-types` to list every type
+- `template view <name|uuid>` command showing a template's type, owning team, description, and markdown content; `--json` includes the raw `templateData`
+- `issue create --template <name|uuid>` flag to create an issue from a template via Linear's `IssueCreateInput.templateId`. Other flags passed alongside it override the template's values for those fields, since Linear applies the template first and the explicit input second
+- `--template` resolves a template name case-insensitively, and errors with the list of owning teams when the same name is used across teams; pass `--team` or the template's UUID to disambiguate
+
 ## [0.8.0] - 2026-08-10
 
 ### Added

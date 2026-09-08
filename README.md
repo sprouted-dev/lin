@@ -68,6 +68,7 @@ lin issue create "Fix login" --team APP
 lin issue create "Fix login" --team APP --assignee me --priority 2
 lin issue create "Sprint task" --team APP --cycle current
 lin issue create "Ship v2" --team APP --due-date 2026-09-30
+lin issue create "Login is broken" --team APP --template "Bug report"
 lin issue edit ENG-123 --state "In Progress"
 lin issue edit ENG-123 --cycle 42
 lin issue edit ENG-123 --due-date 2026-09-30
@@ -147,6 +148,23 @@ lin label list --team APP
 lin label create "Bug" --team APP
 ```
 
+### Templates
+
+Linear templates pre-fill issue fields. `lin` reads them and applies them at
+creation; templates themselves are authored in the Linear UI.
+
+```sh
+lin template list
+lin template list --team APP
+lin template list --global           # workspace-level templates only
+lin template list --type project
+lin template view "Bug report"
+lin issue create "Login is broken" --team APP --template "Bug report"
+```
+
+Flags you pass alongside `--template` win: `--template "Bug report" --priority 1`
+applies the template, then overrides its priority.
+
 ### Workspaces
 
 ```sh
@@ -181,6 +199,7 @@ Most flags accept human-readable names instead of UUIDs:
 - `--assignee` accepts a user name, email, `me`, or UUID
 - `--project` accepts a project name or UUID
 - `--cycle` accepts a cycle name, number, or `current`
+- `--template` accepts a template name (case-insensitive) or UUID
 - Issue identifiers like `ENG-123` are resolved automatically
 
 ### Global Flags

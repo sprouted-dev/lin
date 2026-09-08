@@ -254,6 +254,8 @@ pub struct IssueCreateInput {
     pub cycle_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub due_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub template_id: Option<String>,
 }
 
 // --- Comment ---
@@ -715,4 +717,38 @@ pub struct InitiativeDetail {
 #[derive(Debug, Deserialize)]
 pub struct InitiativeDetailData {
     pub initiative: InitiativeDetail,
+}
+
+// --- Template ---
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Template {
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+    #[serde(rename = "type")]
+    pub template_type: String,
+    pub content: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub template_data: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub team: Option<TemplateTeam>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct TemplateTeam {
+    pub key: Option<String>,
+    pub name: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TemplateSearchData {
+    pub template_search: Vec<Template>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TemplateData {
+    pub template: Template,
 }

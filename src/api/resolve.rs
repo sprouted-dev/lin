@@ -371,6 +371,95 @@ pub async fn fetch_all_labels(
     Ok(all_labels)
 }
 
+/// Human-readable owner of a template: the team key/name, or "(workspace)"
+/// for a workspace-level template that belongs to no team.
+pub fn template_owner(template: &Template) -> String {
+    match &template.team {
+        Some(t) => t.key.clone().unwrap_or_else(|| t.name.clone()),
+        None => "(workspace)".to_string(),
+    }
+}
+
+/// Fetch templates in the order the Linear app shows them, optionally scoped to
+/// one team (or to workspace-level templates only) and to one entity type.
+pub async fn fetch_templates(
+    client: &LinearClient,
+    team: Option<&str>,
+    template_type: Option<&str>,
+    global_only: bool,
+) -> Result<Vec<Template>> {
+    let mut filter = json!({});
+
+    if let Some(t) = template_type {
+        filter["type"] = json!({ "eq": t });
+    }
+
+    if global_only {
+        filter["team"] = json!({ "null": true });
+    } else if let Some(t) = team {
+        let team_id = resolve_team_identifier(client, t).await?;
+        filter["team"] = json!({ "id": { "eq": team_id } });
+    }
+
+    // templateSearch caps `first` at 250 and returns a plain list, not a
+    // paginated connection, so one request is the whole result set.
+    let mut vars = json!({ "first": 250 });
+    if !filter.as_object().is_none_or(|o| o.is_empty()) {
+        vars["filter"] = filter;
+    }
+
+    let data: TemplateSearchData = client.execute(TEMPLATE_SEARCH_QUERY, Some(vars)).await?;
+    Ok(data.template_search)
+}
+
+/// Resolve a template name (case-insensitive) or UUID to a template ID.
+pub async fn resolve_template_identifier(
+    client: &LinearClient,
+    identifier: &str,
+    team: Option<&str>,
+    template_type: Option<&str>,
+) -> Result<String> {
+    if is_uuid(identifier) {
+        return Ok(identifier.to_string());
+    }
+
+    let templates = fetch_templates(client, team, template_type, false).await?;
+
+    let lower = identifier.to_lowercase();
+    let matches: Vec<&Template> = templates
+        .iter()
+        .filter(|t| t.name.to_lowercase() == lower)
+        .collect();
+
+    match matches.as_slice() {
+        [template] => Ok(template.id.clone()),
+        [_, ..] => bail!(
+            "Template '{}' is ambiguous — {} templates share that name across teams: {}. \
+             Re-run with --team to choose one, or pass the template's UUID.",
+            identifier,
+            matches.len(),
+            matches
+                .iter()
+                .map(|t| template_owner(t))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        [] => bail!(
+            "Template '{}' not found. Available templates: {}",
+            identifier,
+            if templates.is_empty() {
+                "(none)".to_string()
+            } else {
+                templates
+                    .iter()
+                    .map(|t| t.name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            }
+        ),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::is_uuid;
