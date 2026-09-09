@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-09
+
 ### Added
 - `template list` command to list Linear templates via `templateSearch`, with `--team <name|key|uuid>` to scope to the templates available to a team (its own plus workspace-level ones, matching Linear's issue-creation picker), `--global` for workspace-level templates only, and `--type issue|project|document` (default `issue`) or `--all-types` to list every type
 - `template view <name|uuid>` command showing a template's type, owning team, description, and markdown content; `--json` includes the raw `templateData`
